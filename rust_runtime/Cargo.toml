@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crates/runner_tch",
+    "crates/runner_tract",
+    "examples/image_server",
+    "examples/denoiser_cli",
+    "examples/wasm_frontend"
+]

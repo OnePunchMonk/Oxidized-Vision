@@ -1,0 +1,9 @@
+[package]
+name = "runner_tch"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tch = "0.10"
+ndarray = "0.15"
+anyhow = "1.0"

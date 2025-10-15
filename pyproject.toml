@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oxidizedvision"
+version = "0.0.1"
+authors = [
+  { name="Avaya Aggarwal", email="aggarwal.avaya27@gmail.com" },
+]
+description = "Compile your vision models to Rust for ultra-fast inference."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch",
+    "torchvision",
+    "onnx",
+    "onnx-simplifier",
+    "onnxruntime",
+    "numpy",
+    "click",
+    "typer",
+    "pydantic",
+    "pyyaml"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/onepunchmonk/oxidizedvision"
+"Bug Tracker" = "https://github.com/onepunchmonk/oxidizedvision/issues"
+
+[project.scripts]
+oxidizedvision = "oxidizedvision.cli:app"

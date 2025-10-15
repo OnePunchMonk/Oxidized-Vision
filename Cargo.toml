@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "rust_runtime/crates/runner_tch",
+    "rust_runtime/crates/runner_tract",
+    "rust_runtime/examples/image_server",
+    "rust_runtime/examples/denoiser_cli",
+    "rust_runtime/examples/wasm_frontend"
+]

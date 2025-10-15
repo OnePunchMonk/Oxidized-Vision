@@ -1,0 +1,19 @@
+model:
+  path: examples/example_unet/model.py
+  class_name: UNet
+  input_shape: [1, 3, 256, 256]
+  # checkpoint: checkpoints/unet_ckpt.pt # Optional
+
+export:
+  opset_version: 14
+  do_constant_folding: true
+
+runners:
+  - name: tract
+    optimize: true
+  - name: tch
+    use_cuda: true
+
+validate:
+  num_tests: 8
+  tolerance: 1e-4
