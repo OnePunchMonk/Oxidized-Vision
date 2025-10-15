@@ -35,3 +35,6 @@ dependencies = [
 
 [project.scripts]
 oxidizedvision = "oxidizedvision.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["python_client"]

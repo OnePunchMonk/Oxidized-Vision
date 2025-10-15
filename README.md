@@ -2,13 +2,26 @@
 
 **Compile your vision models to Rust for ultra-fast inference.**
 
+<p align="center">
+  <a href="https://github.com/your-username/oxidizedvision/actions/workflows/ci.yml"><img src="https://github.com/your-username/oxidizedvision/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/oxidizedvision/"><img src="https://img.shields.io/pypi/v/oxidizedvision" alt="PyPI"></a>
+  <a href="https://crates.io/crates/oxidizedvision_run"><img src="https://img.shields.io/crates/v/oxidizedvision_run" alt="Crates.io"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+</p>
+
 OxidizedVision is an end-to-end toolkit for converting PyTorch vision models into lightweight, production-ready Rust artifacts. It's designed for performance, portability, and ease of use, enabling you to deploy your models on servers, edge devices, and even in the browser with WebAssembly.
+
+## Why OxidizedVision?
+
+-   **Peak Performance**: Leverage Rust's bare-metal performance to get the lowest possible latency and a minimal memory footprint for your models.
+-   **Rock-Solid Reliability**: Eliminate a whole class of Python runtime errors. Rust's compile-time checks and strong type system mean your inference service is robust and production-ready.
+-   **Simplified Deployment**: Deploy a single, self-contained binary without needing to manage Python environments, `pip` dependencies, or bulky libraries on your server.
+-   **Run Anywhere**: With backends for both LibTorch (`tch-rs`) and a pure-Rust ONNX runtime (`tract`), you can deploy to powerful servers with GPUs or to resource-constrained edge devices.
+-   **WebAssembly Support**: Compile your models to WASM using the `tract` backend and run them directly in the browser for interactive web applications.
 
 ## Key Features
 
 -   **End-to-End Conversion**: A seamless pipeline to convert PyTorch models to TorchScript, then to ONNX, and finally into a Rust-based runtime.
--   **Performance**: Leverage Rust's performance and low memory footprint for efficient inference.
--   **Portability**: Run your models on Linux, macOS, Windows, and in the browser with WASM.
 -   **Choice of Runtimes**:
     -   `tch-rs` (LibTorch backend) for full compatibility and GPU support.
     -   `tract` (ONNX backend) for lightweight, portable, and WASM-friendly deployments.

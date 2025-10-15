@@ -13,7 +13,22 @@ The main stages of the pipeline are:
 3.  **Packaging**: The optimized model is packaged into a Rust crate with a chosen runtime.
 4.  **Deployment**: The Rust crate can be built into a binary, a library, or a WebAssembly module.
 
-![High-Level Architecture](https://user-images.githubusercontent.com/1067024/153125373-e8f3d3e4-3e2c-4a6a-84e3-4e6f3a3a1b5a.png)
+```mermaid
+graph TD
+    subgraph "Python: Conversion Pipeline"
+        A[PyTorch Model] -- "torch.jit.trace" --> B(TorchScript .pt);
+        B -- "torch.onnx.export" --> C(ONNX .onnx);
+        C -- "onnx-simplifier" --> D(Optimized .onnx);
+    end
+
+    subgraph "Rust: Inference Runtimes"
+        B --> E("tch-rs Runtime");
+        D --> F("tract Runtime");
+    end
+
+    E -- "Build" --> G[Native Binary / Library];
+    F -- "Build" --> H[Native Binary or WASM Module];
+```
 
 ## 2. Core Components
 

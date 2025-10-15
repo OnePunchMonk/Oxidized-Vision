@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxidizedVision WASM Demo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+        }
+
+        #output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>OxidizedVision WASM Demo</h1>
+    <p>This demo runs a model in your browser using WebAssembly.</p>
+    <button id="run-model">Run Inference</button>
+    <div id="output"></div>
+
+    <script type="module">
+        import init, { greet } from './pkg/wasm_frontend.js';
+
+        async function run() {
+            await init();
+            const result = greet();
+            document.getElementById('output').innerText = result;
+        }
+
+        document.getElementById('run-model').addEventListener('click', run);
+    </script>
+</body>
+
+</html>
