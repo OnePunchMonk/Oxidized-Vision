@@ -40,7 +40,7 @@ OxidizedVision is an end-to-end toolkit for converting PyTorch vision models int
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/oxidizedvision.git
+    git clone https://github.com/onepunchmonk/oxidizedvision.git
     cd oxidizedvision
     ```
 
