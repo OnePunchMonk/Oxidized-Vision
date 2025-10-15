@@ -7,3 +7,18 @@ members = [
     "rust_runtime/examples/denoiser_cli",
     "rust_runtime/examples/wasm_frontend"
 ]
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Avaya Aggarwal <aggarwal.avaya27@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/OnePunchMonk/Oxidized-Vision"
+readme = "README.md"
+homepage = "https://github.com/OnePunchMonk/Oxidized-Vision"
+description = "Compile your vision models to Rust for ultra-fast inference."
+keywords = ["machine-learning", "vision", "ai", "rust", "inference"]
+categories = ["science", "computer-vision"]
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
