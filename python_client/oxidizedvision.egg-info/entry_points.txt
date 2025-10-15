@@ -1,0 +1,2 @@
+[console_scripts]
+oxidizedvision = oxidizedvision.cli:app

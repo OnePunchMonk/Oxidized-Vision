@@ -2,10 +2,14 @@ import typer
 from . import convert as convert_module
 from . import validate as validate_module
 from . import config as config_module
+from . import benchmark as benchmark_module
 import yaml
 import os
 import shutil
 import subprocess
+import json
+from rich.console import Console
+from rich.table import Table
 
 app = typer.Typer()
 
@@ -22,13 +26,43 @@ def convert(config_path: str):
     print("Conversion process finished.")
 
 @app.command()
-def validate(torchscript: str, onnx: str):
+def validate(
+    config_path: str,
+    tolerance_mae: float = 1e-5,
+    tolerance_cos_sim: float = 0.999,
+):
     """
-    Validate outputs of TorchScript and ONNX models.
+    Validate outputs of TorchScript and ONNX models based on a config file.
     """
-    print(f"Validating {torchscript} and {onnx}...")
-    validate_module.validate_models(torchscript, onnx)
-    print("Validation finished.")
+    console = Console()
+    console.print(f"🔎 Validating models from [bold cyan]{config_path}[/bold cyan]...")
+
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    model_paths = {}
+    output_dir = config.get("output_dir", "models")
+    model_name = config.get("model_name", "model")
+
+    # Gather model paths
+    ts_path = os.path.join(output_dir, f"{model_name}.pt")
+    if os.path.exists(ts_path):
+        model_paths["torchscript"] = ts_path
+
+    onnx_path = os.path.join(output_dir, f"{model_name}.onnx")
+    if os.path.exists(onnx_path):
+        model_paths["onnx"] = onnx_path
+
+    if len(model_paths) < 2:
+        console.print("[red]Could not find at least two models (TorchScript and ONNX) to compare.[/red]")
+        return
+
+    validate_module.validate_models(
+        model_paths,
+        tolerance_mae=tolerance_mae,
+        tolerance_cos_sim=tolerance_cos_sim,
+    )
+    console.print("✅ Validation finished.")
 
 @app.command()
 def package(onnx: str, runner: str, out: str):
@@ -69,6 +103,52 @@ std = "1.0"
     print(f"Rust crate created at {out}")
     print("To build, run `cargo build --release` in that directory.")
 
+
+@app.command()
+def benchmark(
+    model_path: str,
+    runners: str,
+    iters: int = 100,
+    batch_size: int = 1,
+    output_format: str = "table",
+):
+    """
+    Benchmark model performance across different runners.
+    
+    --runners: Comma-separated list of runners (e.g., torchscript,tract)
+    --output-format: Output format (table, json)
+    """
+    console = Console()
+    console.print(f"🚀 Starting benchmark for [bold cyan]{model_path}[/bold cyan]...")
+    
+    runner_list = [r.strip() for r in runners.split(',')]
+    
+    results = benchmark_module.run_benchmarks(
+        model_path=model_path,
+        runners=runner_list,
+        iters=iters,
+        batch_size=batch_size
+    )
+    
+    if output_format == "json":
+        console.print(json.dumps(results, indent=2))
+    else:
+        table = Table(title="Benchmark Results")
+        table.add_column("Runner", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Avg Latency (ms)", style="magenta")
+        table.add_column("Throughput (img/s)", style="green")
+        table.add_column("Memory (MB)", style="yellow")
+
+        for result in results:
+            table.add_row(
+                result["runner"],
+                str(result["avg_latency_ms"]),
+                str(result["throughput_images_per_sec"]),
+                str(result["memory_usage_mb"]),
+            )
+        console.print(table)
+        
+    console.print("✅ Benchmark finished.")
 
 @app.command()
 def serve(model: str, port: int = 8080):

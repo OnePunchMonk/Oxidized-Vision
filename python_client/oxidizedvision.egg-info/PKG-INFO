@@ -1,3 +1,28 @@
+Metadata-Version: 2.4
+Name: oxidizedvision
+Version: 1.0.1
+Summary: Compile your vision models to Rust for ultra-fast inference.
+Author-email: Avaya Aggarwal <aggarwal.avaya27@gmail.com>
+Project-URL: Homepage, https://github.com/onepunchmonk/Oxidized-Vision
+Project-URL: Bug Tracker, https://github.com/onepunchmonk/Oxidized-Vision/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: torch
+Requires-Dist: torchvision
+Requires-Dist: onnx
+Requires-Dist: onnx-simplifier
+Requires-Dist: onnxruntime
+Requires-Dist: numpy
+Requires-Dist: click
+Requires-Dist: typer
+Requires-Dist: pydantic
+Requires-Dist: pyyaml
+Dynamic: license-file
+
 # OxidizedVision 🚀
 
 **Compile once, run anywhere — from GPU servers to the browser.**
