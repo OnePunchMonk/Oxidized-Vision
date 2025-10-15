@@ -3,7 +3,7 @@
 **Compile your vision models to Rust for ultra-fast inference.**
 
 <p align="center">
-  <a href="https://github.com/your-username/oxidizedvision/actions/workflows/ci.yml"><img src="https://github.com/your-username/oxidizedvision/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/onepunchmonk/oxidizedvision/actions/workflows/ci.yml"><img src="https://github.com/onepunchmonk/oxidizedvision/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/oxidizedvision/"><img src="https://img.shields.io/pypi/v/oxidizedvision" alt="PyPI"></a>
   <a href="https://crates.io/crates/oxidizedvision_run"><img src="https://img.shields.io/crates/v/oxidizedvision_run" alt="Crates.io"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
