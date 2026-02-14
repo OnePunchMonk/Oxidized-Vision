@@ -2,10 +2,11 @@
 name = "denoiser_cli"
 version = "0.1.0"
 edition = "2021"
+description = "OxidizedVision image denoiser CLI tool."
 
 [dependencies]
+runner_core = { path = "../../crates/runner_core" }
 runner_tract = { path = "../../crates/runner_tract" }
-runner_tch = { path = "../../crates/runner_tch" }
 ndarray = "0.15"
 image = "0.24"
 anyhow = "1.0"

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "rust_runtime/crates/runner_core",
     "rust_runtime/crates/runner_tch",
     "rust_runtime/crates/runner_tract",
     "rust_runtime/crates/runner_tensorrt",
@@ -19,3 +20,5 @@ categories = ["science", "computer-vision"]
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
+ndarray = "0.15"
+runner_core = { path = "rust_runtime/crates/runner_core" }

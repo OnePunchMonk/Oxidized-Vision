@@ -1,95 +1,200 @@
-# OxidizedVision 🚀
+# 🚀 OxidizedVision
 
-**Compile once, run anywhere — from GPU servers to the browser.**
+**Compile your PyTorch models to Rust for ultra-fast, memory-safe inference.**
 
-OxidizedVision is a production-grade, Rust-native inference toolkit for PyTorch models. It provides a complete pipeline to convert, optimize, validate, and serve machine learning models with the speed and safety of Rust.
+OxidizedVision is a production-grade toolkit that bridges the gap between Python-based model training and Rust-based deployment. It provides a seamless pipeline to **convert**, **optimize**, **validate**, **benchmark**, **profile**, and **package** your models — from a trained PyTorch `nn.Module` to a deployable Rust binary, REST API, or WebAssembly module.
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/OnePunchMonk/Oxidized-Vision/ci.yml?branch=main)](https://github.com/OnePunchMonk/Oxidized-Vision/actions)
-[![PyPI Version](https://img.shields.io/pypi/v/oxidizedvision.svg)](https://pypi.org/project/oxidizedvision/)
-[![Crates.io](https://img.shields.io/crates/v/oxidizedvision_run.svg)](https://crates.io/crates/oxidizedvision_run)
-[![codecov](https://codecov.io/gh/OnePunchMonk/Oxidized-Vision/branch/main/graph/badge.svg)](https://codecov.io/gh/OnePunchMonk/Oxidized-Vision)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OnePunchMonk/Oxidized-Vision/blob/main/LICENSE)
+---
 
 ## ✨ Key Features
 
-- **🐍 Python CLI:** A user-friendly command-line interface to manage the entire workflow.
-- **🦀 Rust Runtimes:** High-performance, safe, and concurrent model execution in Rust.
-- **✅ Multi-Backend Support:**
-  - **TorchScript:** JIT-compiled PyTorch models.
-  - **ONNX:** Interoperable format with `tract` (Rust) and `onnxruntime`.
-  - **WASM:** Run models directly in the browser.
-- **📊 Benchmarking:** Measure and compare latency, throughput, and memory usage across backends.
-- **🔎 Validation:** Ensure numerical consistency between PyTorch, TorchScript, and ONNX outputs with detailed tolerance reports.
-- **⚙️ Optimization:** (Coming soon) Quantization and graph simplification passes.
-- **📦 Packaging:** Automatically package models into self-contained Rust crates.
-- **☁️ Serving:** Built-in `async` server for deploying models as a web service.
+| Feature | Description |
+|---|---|
+| 🔄 **Model Conversion** | PyTorch → TorchScript → ONNX with a single command |
+| ⚡ **Optimization** | ONNX graph simplification, constant folding, INT8/FP16 quantization |
+| ✅ **Validation** | Numerical consistency checks (MAE, RMSE, Cosine Similarity) across formats |
+| 📊 **Benchmarking** | Latency (avg, p50, p95, p99), throughput, and memory profiling |
+| 🔬 **Profiling** | Parameter count, model size, per-layer breakdown |
+| 📦 **Packaging** | Auto-generate a deployable Rust crate (server or CLI) |
+| 🌐 **Multi-Backend** | `tract` (pure Rust), `tch` (LibTorch), `tensorrt` (NVIDIA GPU) |
+| 🧩 **WASM Support** | Run models in the browser via WebAssembly |
+| 📋 **Model Registry** | Track all converted models and their metadata locally |
+| 🎨 **Rich CLI** | Beautiful terminal output with progress indicators and tables |
 
-## 🚀 Quickstart
+---
 
-1. **Installation:**
-   ```bash
-   pip install oxidizedvision
-   ```
+## 🏗️ Architecture
 
-2. **Create a Configuration (`config.yml`):**
-   ```yaml
-   model_name: "my_unet"
-   source_path: "path/to/your/model.py"
-   class_name: "UNet"
-   output_dir: "models"
-   input_shape: [1, 3, 256, 256]
-   opset_version: 11
-   ```
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Python Client (CLI)                   │
+│  convert │ validate │ benchmark │ optimize │ profile    │
+│  package │ serve    │ list      │ info                   │
+└────────────────────────┬────────────────────────────────┘
+                         │ Generates
+┌────────────────────────▼────────────────────────────────┐
+│                    Rust Runtimes                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
+│  │ runner_tch   │  │ runner_tract │  │ runner_tensorrt │ │
+│  │ (LibTorch)   │  │ (Pure Rust)  │  │ (GPU / TensorRT)│ │
+│  └──────┬──────┘  └──────┬──────┘  └───────┬─────────┘ │
+│         │   All implement Runner trait      │           │
+│  ┌──────▼──────────────────▼────────────────▼─────────┐ │
+│  │              runner_core (Shared Trait)             │ │
+│  └────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+                         │ Deploys to
+        ┌────────────────┼────────────────┐
+        ▼                ▼                ▼
+   Native Binary    REST API Server    WASM Module
+```
 
-3. **Convert Your Model:**
-   ```bash
-   oxidizedvision convert --config-path config.yml
-   ```
-   This generates `models/my_unet.pt` (TorchScript) and `models/my_unet.onnx`.
+---
 
-4. **Validate Numerical Consistency:**
-   ```bash
-   oxidizedvision validate --config-path config.yml
-   ```
-   This compares the outputs of the generated models to ensure they are numerically close.
+## ⚡ Quickstart
 
-5. **Benchmark Performance:**
-   ```bash
-   oxidizedvision benchmark --model-path models/my_unet.pt --runners torchscript,tract
-   ```
-   This provides a detailed report on latency, throughput, and memory usage.
+### 1. Install
 
-##  CLI Commands
+```bash
+pip install -e "./python_client"
+```
 
-The `oxidizedvision` CLI provides a suite of commands to streamline your MLOps workflow.
+### 2. Create a Config
 
-| Command     | Description                                                               |
-|-------------|---------------------------------------------------------------------------|
-| `convert`   | Converts a PyTorch model to TorchScript and ONNX formats.                 |
-| `validate`  | Compares the outputs of different model formats for numerical consistency. |
-| `benchmark` | Runs performance benchmarks (latency, throughput, memory) on all backends. |
-| `package`   | Packages an ONNX model into a deployable Rust crate.                      |
-| `optimize`  | (WIP) Applies graph optimizations and quantization.                       |
-| `serve`     | (WIP) Serves the model via a high-performance Rust web server.            |
+```yaml
+# config.yml
+model:
+  path: examples/example_unet/model.py
+  class_name: UNet
+  input_shape: [1, 3, 256, 256]
 
-For detailed options, run `oxidizedvision --help`.
+export:
+  output_dir: out
+  model_name: unet
 
-## Architecture Overview
+validate:
+  tolerance_mae: 1e-4
+  tolerance_cos_sim: 0.999
 
-OxidizedVision consists of two main components:
+benchmark:
+  iters: 100
+  device: cpu
+```
 
-1.  **Python Client (`oxidizedvision`):** A CLI for orchestrating the conversion, validation, and benchmarking pipeline. It uses `typer` for the CLI, `PyTorch` for model conversion, and `rich` for beautiful terminal output.
-2.  **Rust Runtime (`rust_runtime`):** A set of Rust crates that provide high-performance inference runtimes. It uses a trait-based plugin system, allowing you to swap backends easily.
-    -   `runner_tch`: Uses the official LibTorch bindings.
-    -   `runner_tract`: Uses the `tract` engine for ONNX models.
-    -   `runner_tensorrt`: (Experimental) For NVIDIA GPUs.
+### 3. Run the Pipeline
 
-This dual-language architecture gives you the flexibility of Python for model development and the raw performance of Rust for deployment.
+```bash
+# Convert PyTorch → TorchScript + ONNX
+oxidizedvision convert config.yml
 
-## 🤝 Contributing
+# Validate numerical consistency
+oxidizedvision validate config.yml
 
-Contributions are welcome! Please see `CONTRIBUTING.md` for guidelines on how to get started.
+# Optimize the ONNX model
+oxidizedvision optimize out/unet.onnx --quantize int8
 
-## 📜 License
+# Benchmark performance
+oxidizedvision benchmark out/unet.pt --runners torchscript,tract
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+# Profile the model
+oxidizedvision profile config.yml
+
+# Package into a Rust crate
+oxidizedvision package out/unet.onnx --runner tract --template server
+
+# List registered models
+oxidizedvision list
+```
+
+---
+
+## 📖 CLI Reference
+
+| Command | Description | Example |
+|---|---|---|
+| `convert` | Convert PyTorch → TorchScript + ONNX | `oxidizedvision convert config.yml` |
+| `validate` | Check numerical consistency | `oxidizedvision validate config.yml --num-tests 5` |
+| `benchmark` | Measure inference performance | `oxidizedvision benchmark out/model.pt --runners torchscript,tract` |
+| `optimize` | Optimize an ONNX model | `oxidizedvision optimize out/model.onnx --quantize fp16` |
+| `profile` | Analyze model parameters and layers | `oxidizedvision profile config.yml` |
+| `package` | Generate deployable Rust crate | `oxidizedvision package out/model.onnx --template server` |
+| `serve` | Start inference server | `oxidizedvision serve ./binary --port 8080` |
+| `list` | List registered models | `oxidizedvision list` |
+| `info` | Detailed model information | `oxidizedvision info unet` |
+
+---
+
+## 🦀 Rust Runtimes
+
+### Shared Runner Trait
+
+All backends implement a common `Runner` trait:
+
+```rust
+pub trait Runner: Send + Sync {
+    fn from_config(config: &RunnerConfig) -> Result<Self> where Self: Sized;
+    fn run(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>>;
+    fn info(&self) -> ModelInfo;
+}
+```
+
+### Available Backends
+
+| Backend | Model Format | GPU | WASM | Dependencies |
+|---|---|---|---|---|
+| `runner_tract` | ONNX | ❌ | ✅ | None (pure Rust) |
+| `runner_tch` | TorchScript | ✅ | ❌ | LibTorch |
+| `runner_tensorrt` | ONNX → Engine | ✅ | ❌ | TensorRT SDK |
+
+---
+
+## 🗂️ Project Structure
+
+```
+Oxidized-Vision/
+├── python_client/             # Python CLI & pipeline
+│   ├── oxidizedvision/
+│   │   ├── cli.py             # Typer CLI entry point
+│   │   ├── config.py          # Pydantic config models
+│   │   ├── convert.py         # Model conversion
+│   │   ├── validate.py        # Numerical validation
+│   │   ├── benchmark.py       # Performance measurement
+│   │   ├── optimize.py        # ONNX optimization
+│   │   ├── profile.py         # Model profiling
+│   │   └── registry.py        # Model registry
+│   └── tests/                 # pytest test suite
+├── rust_runtime/              # Rust inference runtimes
+│   ├── crates/
+│   │   ├── runner_core/       # Shared Runner trait
+│   │   ├── runner_tch/        # LibTorch backend
+│   │   ├── runner_tract/      # tract (ONNX) backend
+│   │   └── runner_tensorrt/   # TensorRT backend
+│   └── examples/
+│       ├── image_server/      # Actix-web REST API server
+│       ├── denoiser_cli/      # Image denoising CLI
+│       └── wasm_frontend/     # Browser inference demo
+├── tools/                     # Standalone scripts
+├── benchmarks/                # Benchmark infrastructure
+├── examples/                  # User-facing examples
+│   └── example_unet/         # Complete UNet example
+├── docs/                      # Architecture docs
+└── .github/workflows/         # CI/CD
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Python tests
+pytest python_client/tests/ -v --cov=oxidizedvision
+
+# Rust tests
+cargo test --workspace
+```
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.

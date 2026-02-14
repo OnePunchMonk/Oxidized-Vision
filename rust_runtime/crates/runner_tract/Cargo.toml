@@ -2,9 +2,10 @@
 name = "runner_tract"
 version = "0.1.0"
 edition = "2021"
+description = "ONNX inference runner using the pure-Rust tract engine."
 
 [dependencies]
+runner_core = { path = "../runner_core" }
 tract-onnx = { version = "0.20", default-features = false, features = ["onnx"] }
 ndarray = "0.15"
 anyhow = "1.0"
-tract-ndarray = "0.20"

@@ -6,33 +6,302 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OxidizedVision WASM Demo</title>
     <style>
+        :root {
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --accent: #e94560;
+            --accent-glow: rgba(233, 69, 96, 0.3);
+            --text: #eaeaea;
+            --text-muted: #8888aa;
+            --success: #00d4aa;
+            --border: #2a2a4a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: sans-serif;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 1rem;
+            border: 2px dashed var(--border);
+            border-radius: 8px;
             text-align: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .file-input-label.loaded {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .shape-inputs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .shape-inputs label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .shape-inputs input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 0.5rem;
+            width: 80px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent), #c23152);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
 
         #output {
-            margin-top: 20px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status.success { background: rgba(0, 212, 170, 0.2); color: var(--success); }
+        .status.error { background: rgba(233, 69, 96, 0.2); color: var(--accent); }
+        .status.loading { background: rgba(255, 165, 0, 0.2); color: orange; }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--text-muted);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 
 <body>
-    <h1>OxidizedVision WASM Demo</h1>
-    <p>This demo runs a model in your browser using WebAssembly.</p>
-    <button id="run-model">Run Inference</button>
-    <div id="output"></div>
+    <h1>🚀 OxidizedVision</h1>
+    <p class="subtitle">Run ML models directly in your browser using WebAssembly</p>
+
+    <div class="container">
+        <div class="card">
+            <h2>📦 1. Load ONNX Model</h2>
+            <div class="file-input-wrapper">
+                <input type="file" id="model-file" accept=".onnx">
+                <label for="model-file" class="file-input-label" id="model-label">
+                    Click or drag to load an ONNX model file
+                </label>
+            </div>
+            <div class="shape-inputs">
+                <label>Batch <input type="number" id="batch" value="1" min="1"></label>
+                <label>Channels <input type="number" id="channels" value="3" min="1"></label>
+                <label>Height <input type="number" id="height" value="256" min="1"></label>
+                <label>Width <input type="number" id="width" value="256" min="1"></label>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🧠 2. Run Inference</h2>
+            <button id="run-btn" disabled>Load a model first</button>
+        </div>
+
+        <div class="card">
+            <h2>📊 3. Results</h2>
+            <div id="status"></div>
+            <div id="output">Waiting for inference...</div>
+        </div>
+    </div>
 
     <script type="module">
-        import init, { greet } from './pkg/wasm_frontend.js';
+        import init, { greet, run_inference_wasm, get_model_info } from './pkg/wasm_frontend.js';
 
-        async function run() {
+        let wasmReady = false;
+        let modelData = null;
+
+        async function initWasm() {
             await init();
-            const result = greet();
-            document.getElementById('output').innerText = result;
+            wasmReady = true;
+            const msg = greet();
+            console.log(msg);
         }
 
-        document.getElementById('run-model').addEventListener('click', run);
+        initWasm();
+
+        const modelFile = document.getElementById('model-file');
+        const modelLabel = document.getElementById('model-label');
+        const runBtn = document.getElementById('run-btn');
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+
+        modelFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            modelLabel.textContent = `✅ Loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            modelLabel.classList.add('loaded');
+
+            const buffer = await file.arrayBuffer();
+            modelData = new Uint8Array(buffer);
+
+            runBtn.disabled = false;
+            runBtn.textContent = '🚀 Run Inference';
+
+            // Get model info
+            const h = parseInt(document.getElementById('height').value);
+            const w = parseInt(document.getElementById('width').value);
+            const info = get_model_info(modelData, h, w);
+            output.textContent = 'Model loaded:\n' + JSON.stringify(JSON.parse(info), null, 2);
+        });
+
+        runBtn.addEventListener('click', () => {
+            if (!wasmReady || !modelData) return;
+
+            const batch = parseInt(document.getElementById('batch').value);
+            const channels = parseInt(document.getElementById('channels').value);
+            const height = parseInt(document.getElementById('height').value);
+            const width = parseInt(document.getElementById('width').value);
+
+            status.innerHTML = '<span class="status loading"><span class="spinner"></span>Running...</span>';
+
+            // Use zeros as dummy input
+            const inputLen = batch * channels * height * width;
+            const inputData = new Float32Array(inputLen);
+
+            // Run in next tick to allow UI update
+            setTimeout(() => {
+                try {
+                    const result = run_inference_wasm(modelData, inputData, batch, channels, height, width);
+                    const parsed = JSON.parse(result);
+
+                    if (parsed.error) {
+                        status.innerHTML = '<span class="status error">❌ Error</span>';
+                        output.textContent = parsed.error;
+                    } else {
+                        status.innerHTML = '<span class="status success">✅ Success</span>';
+                        output.textContent = JSON.stringify(parsed, null, 2);
+                    }
+                } catch (e) {
+                    status.innerHTML = '<span class="status error">❌ Error</span>';
+                    output.textContent = e.toString();
+                }
+            }, 50);
+        });
     </script>
 </body>
 

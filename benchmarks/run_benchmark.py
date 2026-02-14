@@ -1,70 +1,100 @@
+#!/usr/bin/env python3
+"""
+OxidizedVision — Standalone benchmark tool.
+
+Usage:
+    python benchmarks/run_benchmark.py --model out/model.pt --runners torchscript,tract
+"""
+
 import argparse
-import time
-import numpy as np
-import torch
-import onnxruntime as ort
+import sys
+import os
+import json
 
-def run_benchmark(model_path, runner, iters, batch_size):
-    if runner == "torchscript":
-        model = torch.jit.load(model_path)
-        model.eval()
-        input_shape = [batch_size, 3, 256, 256] # Assuming this shape
-        dummy_input = torch.randn(input_shape)
-        
-        # Warmup
-        for _ in range(10):
-            model(dummy_input)
-            
-        # Timed run
-        start_time = time.time()
-        for _ in range(iters):
-            model(dummy_input)
-        end_time = time.time()
-        
-    elif runner == "tract": # Simulating with onnxruntime
-        session = ort.InferenceSession(model_path)
-        input_name = session.get_inputs()[0].name
-        input_shape = [batch_size, 3, 256, 256] # Assuming this shape
-        dummy_input = np.random.randn(*input_shape).astype(np.float32)
+# Add the python_client directory to the path so we can import oxidizedvision
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python_client"))
 
-        # Warmup
-        for _ in range(10):
-            session.run(None, {input_name: dummy_input})
-        
-        # Timed run
-        start_time = time.time()
-        for _ in range(iters):
-            session.run(None, {input_name: dummy_input})
-        end_time = time.time()
-        
-    else:
-        raise ValueError(f"Unknown runner: {runner}")
+from oxidizedvision.benchmark import run_benchmarks
+from rich.console import Console
+from rich.table import Table
 
-    total_time = end_time - start_time
-    avg_latency = total_time / iters
-    throughput = iters * batch_size / total_time
-    
-    print(f"Runner: {runner}")
-    print(f"  Avg Latency: {avg_latency * 1000:.2f} ms")
-    print(f"  Throughput: {throughput:.2f} images/sec")
+console = Console()
+
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', required=True)
-    parser.add_argument('--runners', required=True, help="comma-separated list, e.g., torchscript,tract")
-    parser.add_argument('--input', help="dummy input path")
-    parser.add_argument('--batch-size', type=int, default=1)
-    parser.add_argument('--iters', type=int, default=100)
+    parser = argparse.ArgumentParser(
+        description="Benchmark model inference performance."
+    )
+    parser.add_argument("--model", required=True, help="Path to the model file.")
+    parser.add_argument(
+        "--runners",
+        required=True,
+        help="Comma-separated list of runners (e.g., torchscript,tract,pytorch).",
+    )
+    parser.add_argument("--iters", type=int, default=100, help="Number of iterations.")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size.")
+    parser.add_argument(
+        "--input-shape",
+        default=None,
+        help="Input shape as comma-separated dims (e.g., '1,3,256,256').",
+    )
+    parser.add_argument(
+        "--device", default="cpu", help="Device: 'cpu' or 'cuda'."
+    )
+    parser.add_argument(
+        "--model-source", default=None, help="Model source .py file (for pytorch runner)."
+    )
+    parser.add_argument(
+        "--model-class", default=None, help="Model class name (for pytorch runner)."
+    )
+    parser.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format.",
+    )
     args = parser.parse_args()
 
-    runners = args.runners.split(',')
-    for runner in runners:
-        model_file = args.model
-        if runner == "tract":
-            # In a real scenario, you'd use the Rust binary.
-            # Here we use the onnx file with onnxruntime as a proxy.
-            model_file = model_file.replace(".pt", ".onnx")
-        run_benchmark(model_file, runner, args.iters, args.batch_size)
+    runners = [r.strip() for r in args.runners.split(",")]
+    shape = None
+    if args.input_shape:
+        shape = [int(d.strip()) for d in args.input_shape.split(",")]
 
-if __name__ == '__main__':
+    results = run_benchmarks(
+        model_path=args.model,
+        runners=runners,
+        iters=args.iters,
+        batch_size=args.batch_size,
+        input_shape=shape,
+        device=args.device,
+        model_source_path=args.model_source,
+        model_class_name=args.model_class,
+    )
+
+    if args.format == "json":
+        print(json.dumps(results, indent=2))
+    else:
+        table = Table(title="Benchmark Results")
+        table.add_column("Runner", style="cyan")
+        table.add_column("Avg (ms)", style="magenta")
+        table.add_column("p50 (ms)", style="blue")
+        table.add_column("p95 (ms)", style="yellow")
+        table.add_column("p99 (ms)", style="red")
+        table.add_column("Throughput", style="green")
+        table.add_column("Mem Δ (MB)", style="dim")
+
+        for r in results:
+            table.add_row(
+                r["runner"],
+                str(r["avg_latency_ms"]),
+                str(r["p50_latency_ms"]),
+                str(r["p95_latency_ms"]),
+                str(r["p99_latency_ms"]),
+                f"{r['throughput_per_sec']}/s",
+                str(r["memory_delta_mb"]),
+            )
+        console.print(table)
+
+
+if __name__ == "__main__":
     main()

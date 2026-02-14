@@ -1,2 +1,2 @@
 [console_scripts]
-oxidizedvision = oxidizedvision.cli:app
+oxidizedvision = oxidizedvision.cli:main

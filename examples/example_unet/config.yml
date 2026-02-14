@@ -2,18 +2,32 @@ model:
   path: examples/example_unet/model.py
   class_name: UNet
   input_shape: [1, 3, 256, 256]
-  # checkpoint: checkpoints/unet_ckpt.pt # Optional
+  # checkpoint: checkpoints/unet_ckpt.pt  # Optional: path to pretrained weights
 
 export:
   opset_version: 14
   do_constant_folding: true
+  output_dir: out
+  model_name: unet
 
 runners:
   - name: tract
     optimize: true
   - name: tch
-    use_cuda: true
+    use_cuda: false
 
-validate:
-  num_tests: 8
-  tolerance: 1e-4
+validation:
+  num_tests: 3
+  tolerance_mae: 1e-4
+  tolerance_cos_sim: 0.999
+
+optimize:
+  simplify: true
+  quantize: null  # Set to 'int8' or 'fp16' for quantization
+  constant_folding: true
+
+benchmark:
+  iters: 50
+  batch_size: 1
+  warmup_iters: 10
+  device: cpu

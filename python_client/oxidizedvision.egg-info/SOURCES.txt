@@ -7,6 +7,9 @@ python_client/oxidizedvision/benchmark.py
 python_client/oxidizedvision/cli.py
 python_client/oxidizedvision/config.py
 python_client/oxidizedvision/convert.py
+python_client/oxidizedvision/optimize.py
+python_client/oxidizedvision/profile.py
+python_client/oxidizedvision/registry.py
 python_client/oxidizedvision/validate.py
 python_client/oxidizedvision.egg-info/PKG-INFO
 python_client/oxidizedvision.egg-info/SOURCES.txt
@@ -15,4 +18,11 @@ python_client/oxidizedvision.egg-info/entry_points.txt
 python_client/oxidizedvision.egg-info/requires.txt
 python_client/oxidizedvision.egg-info/top_level.txt
 python_client/tests/__init__.py
+python_client/tests/conftest.py
+python_client/tests/test_benchmark.py
+python_client/tests/test_cli.py
+python_client/tests/test_config.py
 python_client/tests/test_convert.py
+python_client/tests/test_profile.py
+python_client/tests/test_registry.py
+python_client/tests/test_validate.py

@@ -2,15 +2,42 @@ name: Benchmarks
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'  # Run every Monday at 2 AM UTC
 
 jobs:
   benchmark:
+    name: Run Benchmarks
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e "./python_client"
+
+    - name: Convert example model
+      run: |
+        python -m oxidizedvision.cli convert examples/example_unet/config.yml
 
     - name: Run benchmarks
       run: |
-        # Placeholder for benchmark script
-        echo "No benchmarks yet"
+        python benchmarks/run_benchmark.py \
+          --model out/model.pt \
+          --runners torchscript,tract \
+          --iters 50 \
+          --format json > benchmark_results.json
+        cat benchmark_results.json
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.json

@@ -2,12 +2,14 @@
 name = "image_server"
 version = "0.1.0"
 edition = "2021"
+description = "OxidizedVision inference server with REST API."
 
 [dependencies]
+runner_core = { path = "../../crates/runner_core" }
+runner_tract = { path = "../../crates/runner_tract" }
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
-runner_tract = { path = "../../crates/runner_tract" }
-runner_tch = { path = "../../crates/runner_tch" }
+serde_json = "1.0"
 ndarray = "0.15"
 image = "0.24"
 anyhow = "1.0"
