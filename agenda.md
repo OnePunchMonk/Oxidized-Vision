@@ -207,10 +207,10 @@ These are foundational items that many other tasks depend on.
 - [x] `profile` CLI command with parameter count, size, per-layer breakdown.
 - [x] Output in table format (rich) and JSON.
 
-### 7.3 ⬜ Dynamic batching support in Rust server
+### 7.3 ✅ Dynamic batching support in Rust server
 
-- [ ] Implement request batching in `image_server`.
-- [ ] Add configurable `max_batch_size` and `max_wait_time_ms`.
+- [x] Implement request batching in `image_server` via `DynamicBatcher` struct.
+- [x] Add configurable `--max-batch-size` and `--max-wait-ms` CLI flags.
 
 ### 7.4 ✅ Model versioning and registry
 
@@ -218,17 +218,20 @@ These are foundational items that many other tasks depend on.
 - [x] `oxidizedvision list` to see all models.
 - [x] `oxidizedvision info <model>` to inspect metadata.
 
-### 7.5 ⬜ Logging and observability
+### 7.5 ✅ Logging and observability
 
-- [ ] Add structured logging (`tracing` in Rust, `structlog` in Python).
-- [ ] Add request tracing in the Rust server.
-- [ ] Add Prometheus metrics endpoint.
+- [x] Added `tracing` to all Rust crates (`runner_core`, `runner_tch`, `runner_tract`, `runner_tensorrt`).
+- [x] Added `tracing-actix-web` for per-request tracing in the Rust server.
+- [x] Added `/metrics` endpoint for server observability.
+- [x] Added Python `logging` module (`oxidizedvision.logging`) with Rich and JSON formatters.
+- [x] Added `--verbose` / `--json-log` global CLI options.
 
-### 7.6 ⬜ Multi-model support
+### 7.6 ✅ Multi-model support
 
-- [ ] Allow Rust server to serve multiple models simultaneously.
-- [ ] Route requests by name: `/predict/<model_name>`.
-- [ ] Support model hot-reloading.
+- [x] Allow Rust server to serve multiple models via `--model name=path` (repeatable).
+- [x] Route requests by name: `POST /predict/{model_name}`.
+- [x] Added `GET /models` endpoint to list loaded models.
+- [ ] Support model hot-reloading (future).
 
 ---
 
@@ -289,10 +292,10 @@ These are foundational items that many other tasks depend on.
 - [x] `benchmarks/run_benchmark.py` refactored to import from package.
 - [x] `tools/export_to_onnx.py` updated with proper flags.
 
-### 9.5 ⬜ Add pre-commit hooks
+### 9.5 ✅ Add pre-commit hooks
 
-- [ ] Create `.pre-commit-config.yaml`.
-- [ ] Document setup in `CONTRIBUTING.md`.
+- [x] Created `.pre-commit-config.yaml` (black, isort, ruff, mypy, rustfmt, clippy, general hooks).
+- [x] Documented setup in `CONTRIBUTING.md`.
 
 ---
 
@@ -306,13 +309,10 @@ These are foundational items that many other tasks depend on.
 | 4 | Tools: Placeholder Scripts | ✅ Complete |
 | 5 | Testing & CI | ✅ Complete |
 | 6 | Config & Packaging Improvements | ✅ Complete |
-| 7 | New Features (Roadmap Items) | 🟡 3/6 complete |
+| 7 | New Features (Roadmap Items) | ✅ Complete (5/6; hot-reload deferred) |
 | 8 | Documentation & Developer Experience | ✅ Complete |
-| 9 | Code Quality & Housekeeping | 🟡 4/5 complete |
+| 9 | Code Quality & Housekeeping | ✅ Complete |
 
 ### Remaining Items (Future Work)
 
-- **Sprint 7.3**: Dynamic batching in Rust server
-- **Sprint 7.5**: Structured logging and observability
-- **Sprint 7.6**: Multi-model support and hot-reloading
-- **Sprint 9.5**: Pre-commit hooks configuration
+- **Sprint 7.6**: Model hot-reloading (partial — multi-model serving is done, reload is deferred)

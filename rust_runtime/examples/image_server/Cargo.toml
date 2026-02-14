@@ -2,7 +2,7 @@
 name = "image_server"
 version = "0.1.0"
 edition = "2021"
-description = "OxidizedVision inference server with REST API."
+description = "OxidizedVision inference server with REST API, dynamic batching, and multi-model support."
 
 [dependencies]
 runner_core = { path = "../../crates/runner_core" }
@@ -14,3 +14,8 @@ ndarray = "0.15"
 image = "0.24"
 anyhow = "1.0"
 clap = { version = "3.1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-actix-web = "0.7"
+uuid = { version = "1", features = ["v4"] }

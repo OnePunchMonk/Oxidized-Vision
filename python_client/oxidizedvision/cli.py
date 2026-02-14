@@ -24,6 +24,7 @@ from . import optimize as optimize_module
 from . import profile as profile_module
 from . import registry as registry_module
 from .config import load_config, Config
+from .logging import configure_logging, get_logger
 
 app = typer.Typer(
     name="oxidizedvision",
@@ -31,6 +32,23 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+logger = get_logger(__name__)
+
+
+# ──────────────────────────────── callback ────────────────────────────────
+
+
+@app.callback()
+def main_callback(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging."),
+    json_log: bool = typer.Option(False, "--json-log", help="Emit logs as JSON lines."),
+):
+    """Global options applied before any subcommand."""
+    configure_logging(
+        level="DEBUG" if verbose else "INFO",
+        json_output=json_log,
+        verbose=verbose,
+    )
 
 
 # ──────────────────────────────── convert ────────────────────────────────
@@ -43,6 +61,7 @@ def convert(
     """Convert a PyTorch model to TorchScript and ONNX formats."""
     try:
         cfg = load_config(config_path)
+        logger.info("Starting conversion from %s", config_path)
         console.print(f"\n🚀 Starting conversion from [bold cyan]{config_path}[/bold cyan]")
         ts_path, onnx_path = convert_module.convert_model(cfg)
 
@@ -53,8 +72,12 @@ def convert(
             {"torchscript": ts_path, "onnx": onnx_path},
             config=cfg.dict(),
         )
+        logger.info(
+            "Conversion complete: ts=%s, onnx=%s", ts_path, onnx_path
+        )
 
     except Exception as e:
+        logger.error("Conversion failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Conversion failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -72,6 +95,7 @@ def validate(
     """Validate numerical consistency between TorchScript and ONNX outputs."""
     try:
         cfg = load_config(config_path)
+        logger.info("Validating models from %s", config_path)
         console.print(f"\n🔎 Validating models from [bold cyan]{config_path}[/bold cyan]...")
 
         output_dir = cfg.export.output_dir
@@ -109,12 +133,16 @@ def validate(
             model_checkpoint=cfg.model.checkpoint,
         )
 
-        if not passed:
+        if passed:
+            logger.info("Validation passed")
+        else:
+            logger.warning("Validation failed")
             raise typer.Exit(code=1)
 
     except typer.Exit:
         raise
     except Exception as e:
+        logger.error("Validation failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Validation failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -136,6 +164,7 @@ def benchmark(
 ):
     """Benchmark model performance across different runners."""
     try:
+        logger.info("Starting benchmark for %s (runners=%s, iters=%d)", model_path, runners, iters)
         console.print(f"\n🚀 Starting benchmark for [bold cyan]{model_path}[/bold cyan]...")
 
         runner_list = [r.strip() for r in runners.split(",")]
@@ -181,9 +210,11 @@ def benchmark(
                 )
             console.print(table)
 
+        logger.info("Benchmark finished (%d results)", len(results))
         console.print("\n✅ Benchmark finished.")
 
     except Exception as e:
+        logger.error("Benchmark failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Benchmark failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -201,6 +232,7 @@ def optimize(
 ):
     """Optimize an ONNX model (simplify, quantize, fold constants)."""
     try:
+        logger.info("Optimizing %s (simplify=%s, quantize=%s)", input_path, simplify, quantize)
         optimize_module.optimize_model(
             input_path=input_path,
             output_path=output_path,
@@ -208,7 +240,9 @@ def optimize(
             quantize=quantize,
             constant_folding=constant_folding,
         )
+        logger.info("Optimization complete")
     except Exception as e:
+        logger.error("Optimization failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Optimization failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -224,6 +258,7 @@ def profile(
     """Profile a PyTorch model: parameter count, size, and layer breakdown."""
     try:
         cfg = load_config(config_path)
+        logger.info("Profiling model from %s", config_path)
         result = profile_module.profile_model(
             model_source_path=cfg.model.path,
             model_class_name=cfg.model.class_name,
@@ -236,7 +271,10 @@ def profile(
         else:
             profile_module.print_profile(result)
 
+        logger.info("Profiling complete")
+
     except Exception as e:
+        logger.error("Profiling failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Profiling failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -360,6 +398,7 @@ def package(
             console.print(f"[red]ONNX model not found: {onnx}[/red]")
             raise typer.Exit(code=1)
 
+        logger.info("Packaging %s with runner=%s, template=%s", onnx, runner, template)
         console.print(f"\n📦 Packaging [bold cyan]{onnx}[/bold cyan] with runner [cyan]{runner}[/cyan]...")
         os.makedirs(out, exist_ok=True)
 
@@ -435,12 +474,14 @@ serde = {{ version = "1.0", features = ["derive"] }}{extra_deps}
             else:
                 f.write(f"## Run\n\n```bash\n./target/release/{os.path.basename(out)} --model model.onnx --input input.png --output output.png\n```\n")
 
+        logger.info("Rust crate created at %s", out)
         console.print(f"\n✅ Rust crate created at [bold green]{out}[/bold green]")
         console.print(f"   To build: [dim]cd {out} && cargo build --release[/dim]")
 
     except typer.Exit:
         raise
     except Exception as e:
+        logger.error("Packaging failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Packaging failed: {e}[/red]")
         raise typer.Exit(code=1)
 
@@ -458,6 +499,7 @@ def serve(
     """Start the inference server."""
     try:
         if build and crate_dir:
+            logger.info("Building Rust binary in %s", crate_dir)
             console.print(f"🔧 Building Rust binary in [dim]{crate_dir}[/dim]...")
             result = subprocess.run(
                 ["cargo", "build", "--release"],
@@ -466,6 +508,7 @@ def serve(
                 text=True,
             )
             if result.returncode != 0:
+                logger.error("Build failed: %s", result.stderr)
                 console.print(f"[red]Build failed:\n{result.stderr}[/red]")
                 raise typer.Exit(code=1)
 
@@ -473,6 +516,7 @@ def serve(
             if os.name == "nt":
                 binary_name += ".exe"
             model = os.path.join(crate_dir, "target", "release", binary_name)
+            logger.info("Built binary: %s", model)
             console.print(f"✅ Built: {model}")
 
         if not os.path.exists(model):
@@ -480,12 +524,14 @@ def serve(
             console.print("[dim]Hint: use --build --crate-dir <path> to build first.[/dim]")
             raise typer.Exit(code=1)
 
+        logger.info("Starting server on port %d", port)
         console.print(f"\n🚀 Starting server on port [bold cyan]{port}[/bold cyan]...")
         subprocess.run([model, "--port", str(port)])
 
     except typer.Exit:
         raise
     except Exception as e:
+        logger.error("Serve failed: %s", e, exc_info=True)
         console.print(f"\n[red]❌ Serve failed: {e}[/red]")
         raise typer.Exit(code=1)
 

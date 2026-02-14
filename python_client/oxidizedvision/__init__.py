@@ -16,6 +16,7 @@ from .benchmark import run_benchmarks, measure_performance
 from .optimize import optimize_model, simplify_onnx, quantize_onnx
 from .profile import profile_model, print_profile
 from .registry import register_model, list_models, get_model_info
+from .logging import configure_logging, get_logger
 
 __all__ = [
     # Config
@@ -47,4 +48,7 @@ __all__ = [
     "register_model",
     "list_models",
     "get_model_info",
+    # Logging
+    "configure_logging",
+    "get_logger",
 ]

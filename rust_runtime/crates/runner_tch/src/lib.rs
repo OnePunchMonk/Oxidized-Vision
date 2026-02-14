@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use ndarray::{ArrayD, IxDyn};
+use runner_core::tracing::{debug, info};
 use runner_core::{ModelInfo, Runner, RunnerConfig};
 use tch::{CModule, Device, Tensor};
 
@@ -18,11 +19,22 @@ pub struct TchRunner {
 impl Runner for TchRunner {
     fn from_config(config: &RunnerConfig) -> Result<Self> {
         let device = if config.use_cuda && tch::Cuda::is_available() {
+            info!("Using CUDA device 0");
             Device::Cuda(0)
         } else {
+            info!("Using CPU device");
             Device::Cpu
         };
+
+        info!(
+            model_path = %config.model_path,
+            device = ?device,
+            "Loading TorchScript model"
+        );
+
         let module = CModule::load_on_device(&config.model_path, device)?;
+        info!("TorchScript model loaded successfully");
+
         Ok(Self {
             module,
             device,
@@ -31,6 +43,8 @@ impl Runner for TchRunner {
     }
 
     fn run(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
+        debug!(input_shape = ?input.shape(), "Running tch inference");
+
         let input_shape: Vec<i64> = input.shape().iter().map(|&d| d as i64).collect();
         let flat: Vec<f32> = input.iter().cloned().collect();
         let t = Tensor::from_slice(&flat)
@@ -45,6 +59,7 @@ impl Runner for TchRunner {
         let mut out_vec = vec![0f32; numel];
         out.copy_data(&mut out_vec, numel);
 
+        debug!(output_shape = ?out_shape, "tch inference complete");
         Ok(ArrayD::from_shape_vec(IxDyn(&out_shape), out_vec)?)
     }
 

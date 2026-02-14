@@ -13,6 +13,7 @@
 
 use anyhow::{bail, Context, Result};
 use ndarray::{ArrayD, IxDyn};
+use runner_core::tracing::{debug, info, warn};
 use runner_core::{ModelInfo, Runner, RunnerConfig};
 use std::path::Path;
 use std::process::Command;
@@ -52,7 +53,11 @@ impl Runner for TensorRTRunner {
         let engine_path = format!("{}.engine", model_path.trim_end_matches(".onnx"));
 
         if !Path::new(&engine_path).exists() {
-            println!("Building TensorRT engine from {}...", model_path);
+            info!(
+                model_path = %model_path,
+                engine_path = %engine_path,
+                "Building TensorRT engine from ONNX model"
+            );
 
             let shape_str = config
                 .input_shape
@@ -74,6 +79,9 @@ impl Runner for TensorRTRunner {
             if !status.success() {
                 bail!("trtexec failed to build engine");
             }
+            info!("TensorRT engine built successfully");
+        } else {
+            info!(engine_path = %engine_path, "Using cached TensorRT engine");
         }
 
         Ok(Self {
@@ -83,6 +91,8 @@ impl Runner for TensorRTRunner {
     }
 
     fn run(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
+        debug!(input_shape = ?input.shape(), "Running TensorRT inference");
+
         // Write input to a temporary file
         let input_path = format!("{}.input.bin", self.engine_path);
         let output_path = format!("{}.output.bin", self.engine_path);
@@ -121,6 +131,7 @@ impl Runner for TensorRTRunner {
         // We use the input shape as a heuristic for output shape.
         // In production, you'd parse the engine metadata for the actual output shape.
         let output_shape = input.shape().to_vec();
+        debug!(output_shape = ?output_shape, "TensorRT inference complete");
         Ok(ArrayD::from_shape_vec(IxDyn(&output_shape), output_floats)?)
     }
 

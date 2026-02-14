@@ -116,6 +116,23 @@ cargo fmt --all
 cargo clippy --workspace -- -D warnings
 ```
 
+## 🪝 Pre-commit Hooks
+
+We use [pre-commit](https://pre-commit.com/) to enforce code quality automatically on every commit:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Set up the git hooks
+pre-commit install
+
+# Run on all files (first time / CI)
+pre-commit run --all-files
+```
+
+The hooks will run `black`, `isort`, `ruff`, `mypy` for Python and `rustfmt`, `clippy` for Rust automatically before each commit.
+
 ## 🔀 Making a Pull Request
 
 1. **Fork** the repository and create a feature branch.

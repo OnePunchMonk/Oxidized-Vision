@@ -9,6 +9,9 @@ use anyhow::Result;
 use ndarray::{ArrayD, IxDyn};
 use serde::{Deserialize, Serialize};
 
+// Re-export tracing so downstream crates can use it consistently.
+pub use tracing;
+
 /// Metadata describing a loaded model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {

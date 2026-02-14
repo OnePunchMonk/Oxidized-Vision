@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use ndarray::{ArrayD, IxDyn};
+use runner_core::tracing::{debug, info, warn};
 use runner_core::{ModelInfo, Runner, RunnerConfig};
 use tract_onnx::prelude::*;
 
@@ -16,6 +17,13 @@ pub struct TractRunner {
 
 impl Runner for TractRunner {
     fn from_config(config: &RunnerConfig) -> Result<Self> {
+        info!(
+            model_path = %config.model_path,
+            input_shape = ?config.input_shape,
+            optimize = config.optimize,
+            "Loading ONNX model with tract"
+        );
+
         let input_shape: Vec<usize> = config.input_shape.clone();
         let fact = f32::fact(&input_shape);
 
@@ -23,12 +31,14 @@ impl Runner for TractRunner {
         model = model.with_input_fact(0, fact.into())?;
 
         let model = if config.optimize {
+            debug!("Applying tract graph optimizations");
             model.into_optimized()?
         } else {
             model.into_typed()?
         };
 
         let model = model.into_runnable()?;
+        info!("Model loaded successfully");
 
         Ok(Self {
             model,
@@ -37,9 +47,11 @@ impl Runner for TractRunner {
     }
 
     fn run(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
+        debug!(input_shape = ?input.shape(), "Running tract inference");
         let tract_input: tract_onnx::prelude::Tensor = input.clone().into();
         let result = self.model.run(tvec!(tract_input.into()))?;
         let output = result[0].to_array_view::<f32>()?.to_owned();
+        debug!(output_shape = ?output.shape(), "Inference complete");
         Ok(output)
     }
 
@@ -73,6 +85,7 @@ impl TractRunner {
 
     /// Load an ONNX model from raw bytes (useful for WASM targets).
     pub fn load_from_bytes(data: &[u8], input_shape: &[usize]) -> Result<Self> {
+        info!(bytes = data.len(), input_shape = ?input_shape, "Loading model from bytes");
         let fact = f32::fact(input_shape);
         let mut cursor = std::io::Cursor::new(data);
 

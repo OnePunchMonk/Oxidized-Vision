@@ -1,5 +1,10 @@
 # 🚀 OxidizedVision
 
+[![CI](https://github.com/OnePunchMonk/Oxidized-Vision/actions/workflows/ci.yml/badge.svg)](https://github.com/OnePunchMonk/Oxidized-Vision/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/oxidizedvision)](https://pypi.org/project/oxidizedvision/)
+[![Python](https://img.shields.io/pypi/pyversions/oxidizedvision)](https://pypi.org/project/oxidizedvision/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Compile your PyTorch models to Rust for ultra-fast, memory-safe inference.**
 
 OxidizedVision is a production-grade toolkit that bridges the gap between Python-based model training and Rust-based deployment. It provides a seamless pipeline to **convert**, **optimize**, **validate**, **benchmark**, **profile**, and **package** your models — from a trained PyTorch `nn.Module` to a deployable Rust binary, REST API, or WebAssembly module.
@@ -20,6 +25,10 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 | 🧩 **WASM Support** | Run models in the browser via WebAssembly |
 | 📋 **Model Registry** | Track all converted models and their metadata locally |
 | 🎨 **Rich CLI** | Beautiful terminal output with progress indicators and tables |
+| 🔀 **Multi-Model Server** | Serve multiple models from a single Rust server instance |
+| ⏱️ **Dynamic Batching** | Configurable request batching for efficient inference |
+| 📝 **Structured Logging** | `tracing` (Rust) + Rich/JSON (Python) for full observability |
+| 📈 **Metrics Endpoint** | `/metrics` for monitoring request counts and server health |
 
 ---
 
@@ -30,6 +39,8 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 │                    Python Client (CLI)                   │
 │  convert │ validate │ benchmark │ optimize │ profile    │
 │  package │ serve    │ list      │ info                   │
+│                                                         │
+│  Global: --verbose  │  --json-log                       │
 └────────────────────────┬────────────────────────────────┘
                          │ Generates
 ┌────────────────────────▼────────────────────────────────┐
@@ -41,12 +52,16 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 │         │   All implement Runner trait      │           │
 │  ┌──────▼──────────────────▼────────────────▼─────────┐ │
 │  │              runner_core (Shared Trait)             │ │
+│  │          + tracing structured logging              │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                          │ Deploys to
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
    Native Binary    REST API Server    WASM Module
+                    (multi-model,
+                     batching,
+                     /metrics)
 ```
 
 ---
@@ -56,7 +71,11 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 ### 1. Install
 
 ```bash
-pip install -e "./python_client"
+# From PyPI
+pip install oxidizedvision
+
+# From source (development)
+pip install -e "./python_client[dev]"
 ```
 
 ### 2. Create a Config
@@ -106,6 +125,16 @@ oxidizedvision package out/unet.onnx --runner tract --template server
 oxidizedvision list
 ```
 
+### 4. Debug with Structured Logging
+
+```bash
+# Verbose mode (DEBUG level)
+oxidizedvision --verbose convert config.yml
+
+# JSON log output (for CI / log aggregation)
+oxidizedvision --json-log convert config.yml
+```
+
 ---
 
 ## 📖 CLI Reference
@@ -121,6 +150,13 @@ oxidizedvision list
 | `serve` | Start inference server | `oxidizedvision serve ./binary --port 8080` |
 | `list` | List registered models | `oxidizedvision list` |
 | `info` | Detailed model information | `oxidizedvision info unet` |
+
+### Global Options
+
+| Flag | Description |
+|---|---|
+| `--verbose` / `-v` | Enable DEBUG-level logging |
+| `--json-log` | Emit logs as JSON lines (for CI / production) |
 
 ---
 
@@ -148,6 +184,42 @@ pub trait Runner: Send + Sync {
 
 ---
 
+## 🖥️ Inference Server
+
+The built-in `image_server` example provides a production-ready REST API:
+
+```bash
+# Single model
+cargo run -p image_server -- --model model.onnx --port 8080
+
+# Multi-model (serve multiple models simultaneously)
+cargo run -p image_server -- \
+  --model segmenter=models/seg.onnx \
+  --model classifier=models/cls.onnx \
+  --port 8080
+
+# With dynamic batching
+cargo run -p image_server -- \
+  --model model.onnx \
+  --max-batch-size 8 \
+  --max-wait-ms 50
+
+# JSON structured logs
+cargo run -p image_server -- --model model.onnx --log-format json
+```
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/predict` | Inference on the default model |
+| `POST` | `/predict/{model_name}` | Inference on a named model |
+| `GET` | `/health` | Health check with per-model status |
+| `GET` | `/metrics` | Request counts, error counts, batch status |
+| `GET` | `/models` | List all loaded models |
+
+---
+
 ## 🗂️ Project Structure
 
 ```
@@ -161,16 +233,17 @@ Oxidized-Vision/
 │   │   ├── benchmark.py       # Performance measurement
 │   │   ├── optimize.py        # ONNX optimization
 │   │   ├── profile.py         # Model profiling
-│   │   └── registry.py        # Model registry
+│   │   ├── registry.py        # Model registry
+│   │   └── logging.py         # Structured logging (Rich / JSON)
 │   └── tests/                 # pytest test suite
 ├── rust_runtime/              # Rust inference runtimes
 │   ├── crates/
-│   │   ├── runner_core/       # Shared Runner trait
+│   │   ├── runner_core/       # Shared Runner trait + tracing
 │   │   ├── runner_tch/        # LibTorch backend
 │   │   ├── runner_tract/      # tract (ONNX) backend
 │   │   └── runner_tensorrt/   # TensorRT backend
 │   └── examples/
-│       ├── image_server/      # Actix-web REST API server
+│       ├── image_server/      # Multi-model REST API with batching
 │       ├── denoiser_cli/      # Image denoising CLI
 │       └── wasm_frontend/     # Browser inference demo
 ├── tools/                     # Standalone scripts
@@ -178,7 +251,7 @@ Oxidized-Vision/
 ├── examples/                  # User-facing examples
 │   └── example_unet/         # Complete UNet example
 ├── docs/                      # Architecture docs
-└── .github/workflows/         # CI/CD
+└── .github/workflows/         # CI/CD + PyPI auto-deploy
 ```
 
 ---
@@ -192,6 +265,34 @@ pytest python_client/tests/ -v --cov=oxidizedvision
 # Rust tests
 cargo test --workspace
 ```
+
+### Pre-commit Hooks
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+---
+
+## 📦 Publishing to PyPI
+
+Releases are automatically published to PyPI when a GitHub Release is created with a `v*` tag (e.g., `v1.0.2`). See [`.github/workflows/publish.yml`](.github/workflows/publish.yml) for details.
+
+To publish manually:
+
+```bash
+pip install build twine
+python -m build
+twine upload dist/*
+```
+
+---
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing instructions, and PR guidelines.
 
 ---
 
