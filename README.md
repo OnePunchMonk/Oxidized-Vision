@@ -31,35 +31,7 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Python Client (CLI)                   │
-│  convert │ validate │ benchmark │ optimize │ profile    │
-│  package │ serve    │ list      │ info                   │
-│                                                         │
-│  Global: --verbose  │  --json-log                       │
-└────────────────────────┬────────────────────────────────┘
-                         │ Generates
-┌────────────────────────▼────────────────────────────────┐
-│                    Rust Runtimes                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
-│  │ runner_tch   │  │ runner_tract │  │ runner_tensorrt │ │
-│  │ (LibTorch)   │  │ (Pure Rust)  │  │ (GPU / TensorRT)│ │
-│  └──────┬──────┘  └──────┬──────┘  └───────┬─────────┘ │
-│         │   All implement Runner trait      │           │
-│  ┌──────▼──────────────────▼────────────────▼─────────┐ │
-│  │              runner_core (Shared Trait)             │ │
-│  │          + tracing structured logging              │ │
-│  └────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-                         │ Deploys to
-        ┌────────────────┼────────────────┐
-        ▼                ▼                ▼
-   Native Binary    REST API Server    WASM Module
-                    (multi-model,
-                     batching,
-                     /metrics)
-```
+```mermaid flowchart TB %% ========================= %% Python Client (CLI) %% ========================= subgraph CLI["Python Client (CLI)"] direction TB commands["convert | validate | benchmark | optimize | profile<br/>package | serve | list | info"] globals["Global Flags:<br/>--verbose | --json-log"] end CLI -->|Generates| RUST %% ========================= %% Rust Runtimes %% ========================= subgraph RUST["Rust Runtimes"] direction TB subgraph RUNTIMES[""] direction LR TCH["runner_tch<br/>(LibTorch)"] TRACT["runner_tract<br/>(Pure Rust)"] TRT["runner_tensorrt<br/>(GPU / TensorRT)"] end CORE["runner_core (Shared Trait)<br/>+ tracing structured logging"] TCH --> CORE TRACT --> CORE TRT --> CORE end RUST -->|Deploys to| NATIVE RUST --> REST RUST --> WASM %% ========================= %% Deployment Targets %% ========================= NATIVE["Native Binary"] REST["REST API Server<br/>(multi-model, batching, /metrics)"] WASM["WASM Module"] ```
 
 ---
 
@@ -270,26 +242,6 @@ pip install pre-commit
 pre-commit install
 pre-commit run --all-files
 ```
-
----
-
-## 📦 Publishing to PyPI
-
-Releases are automatically published to PyPI when a GitHub Release is created with a `v*` tag (e.g., `v1.0.2`). See [`.github/workflows/publish.yml`](.github/workflows/publish.yml) for details.
-
-To publish manually:
-
-```bash
-pip install build twine
-python -m build
-twine upload dist/*
-```
-
----
-
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing instructions, and PR guidelines.
 
 ---
 
