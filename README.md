@@ -31,8 +31,54 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 
 ## 🏗️ Architecture
 
-<pre> ```mermaid flowchart TB %% ========================= %% Python Client (CLI) %% ========================= subgraph CLI["Python Client (CLI)"] direction TB commands["convert | validate | benchmark | optimize | profile<br/>package | serve | list | info"] globals["Global Flags:<br/>--verbose | --json-log"] end CLI -->|Generates| RUST %% ========================= %% Rust Runtimes %% ========================= subgraph RUST["Rust Runtimes"] direction TB subgraph RUNTIMES[""] direction LR TCH["runner_tch<br/>(LibTorch)"] TRACT["runner_tract<br/>(Pure Rust)"] TRT["runner_tensorrt<br/>(GPU / TensorRT)"] end CORE["runner_core (Shared Trait)<br/>+ tracing structured logging"] TCH --> CORE TRACT --> CORE TRT --> CORE end RUST -->|Deploys to| NATIVE RUST --> REST RUST --> WASM %% ========================= %% Deployment Targets %% ========================= NATIVE["Native Binary"] REST["REST API Server<br/>(multi-model, batching, /metrics)"] WASM["WASM Module"] ``` </pre>
+```mermaid
+flowchart TB
 
+%% =========================
+%% Python Client (CLI)
+%% =========================
+subgraph CLI["Python Client (CLI)"]
+    direction TB
+    commands["convert | validate | benchmark | optimize | profile<br/>package | serve | list | info"]
+    globals["Global Flags:<br/>--verbose | --json-log"]
+end
+
+CLI -->|Generates| RUST
+
+%% =========================
+%% Rust Runtimes
+%% =========================
+subgraph RUST["Rust Runtimes"]
+
+    direction TB
+
+    subgraph RUNTIMES[""]
+        direction LR
+
+        TCH["runner_tch<br/>(LibTorch)"]
+        TRACT["runner_tract<br/>(Pure Rust)"]
+        TRT["runner_tensorrt<br/>(GPU / TensorRT)"]
+    end
+
+    CORE["runner_core (Shared Trait)<br/>+ tracing structured logging"]
+
+    TCH --> CORE
+    TRACT --> CORE
+    TRT --> CORE
+
+end
+
+RUST -->|Deploys to| NATIVE
+RUST --> REST
+RUST --> WASM
+
+%% =========================
+%% Deployment Targets
+%% =========================
+NATIVE["Native Binary"]
+REST["REST API Server<br/>(multi-model, batching, /metrics)"]
+WASM["WASM Module"]
+```
 ---
 
 ## ⚡ Quickstart
