@@ -1,8 +1,5 @@
 # 🚀 OxidizedVision
 
-[![CI](https://github.com/OnePunchMonk/Oxidized-Vision/actions/workflows/ci.yml/badge.svg)](https://github.com/OnePunchMonk/Oxidized-Vision/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/oxidizedvision)](https://pypi.org/project/oxidizedvision/)
-[![Python](https://img.shields.io/pypi/pyversions/oxidizedvision)](https://pypi.org/project/oxidizedvision/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Compile your PyTorch models to Rust for ultra-fast, memory-safe inference.**
