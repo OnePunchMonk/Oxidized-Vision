@@ -1,17 +1,13 @@
 """Tests for the benchmark module."""
 
 import pytest
-import os
-import torch
-import numpy as np
-from unittest.mock import patch, MagicMock
 from oxidizedvision.benchmark import (
+    _measure,
     measure_performance,
     run_benchmarks,
-    _measure,
 )
-from oxidizedvision.convert import convert_model
 from oxidizedvision.config import Config
+from oxidizedvision.convert import convert_model
 
 
 class TestMeasure:

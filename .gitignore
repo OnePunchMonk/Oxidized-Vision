@@ -5,3 +5,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+*.egg-info/
+.oxidizedvision_registry.json
+.pytest_cache/
+*.pt

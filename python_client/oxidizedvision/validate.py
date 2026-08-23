@@ -4,15 +4,15 @@ OxidizedVision — Model validation module.
 Compares outputs across PyTorch, TorchScript, and ONNX to ensure numerical consistency.
 """
 
-import torch
+import itertools
+from typing import Optional
+
 import numpy as np
 import onnxruntime as ort
-import itertools
-from typing import Dict, Optional, List
-from rich.table import Table
+import torch
 from rich.console import Console
+from rich.table import Table
 
-from .config import Config
 from .convert import _import_model_from_path
 
 console = Console()
@@ -52,13 +52,13 @@ def _get_pytorch_output(
     checkpoint: Optional[str] = None,
 ) -> np.ndarray:
     """Run inference with a native PyTorch model.
-    
+
     Args:
         model_path: Path to the .py file containing the model class.
         class_name: Name of the nn.Module class.
         input_tensor: Input tensor for inference.
         checkpoint: Optional checkpoint path.
-        
+
     Returns:
         Output as a numpy array.
     """
@@ -91,7 +91,7 @@ def _get_onnx_output(model_path: str, input_numpy: np.ndarray) -> np.ndarray:
 
 def validate_models(
     model_paths: dict,
-    input_shape: Optional[List[int]] = None,
+    input_shape: Optional[list[int]] = None,
     tolerance_mae: float = 1e-5,
     tolerance_cos_sim: float = 0.999,
     num_tests: int = 1,
@@ -100,7 +100,7 @@ def validate_models(
     model_checkpoint: Optional[str] = None,
 ) -> bool:
     """Validate that different model formats produce consistent outputs.
-    
+
     Args:
         model_paths: Dict mapping format name to file path.
                      Keys: 'pytorch', 'torchscript', 'onnx'.
@@ -111,7 +111,7 @@ def validate_models(
         model_source_path: Path to .py file (for 'pytorch' validation).
         model_class_name: Class name (for 'pytorch' validation).
         model_checkpoint: Checkpoint path (for 'pytorch' validation).
-        
+
     Returns:
         True if all comparisons pass, False otherwise.
     """
@@ -128,7 +128,7 @@ def validate_models(
         dummy_input_torch = torch.randn(*input_shape)
         dummy_input_numpy = dummy_input_torch.numpy()
 
-        outputs: Dict[str, np.ndarray] = {}
+        outputs: dict[str, np.ndarray] = {}
 
         # --- Get PyTorch output ---
         if "pytorch" in model_paths and model_source_path and model_class_name:
@@ -164,7 +164,9 @@ def validate_models(
             return False
 
         # --- Compare outputs ---
-        table = Table(title=f"Validation Report{f' (Test {test_idx + 1})' if num_tests > 1 else ''}")
+        table = Table(
+            title=f"Validation Report{f' (Test {test_idx + 1})' if num_tests > 1 else ''}"
+        )
         table.add_column("Comparison", justify="center", style="cyan")
         table.add_column("MAE", style="magenta")
         table.add_column("RMSE", style="blue")
@@ -203,8 +205,6 @@ def validate_models(
             f"(MAE ≤ {tolerance_mae:.2e}, CosSim ≥ {tolerance_cos_sim}).[/bold green]"
         )
     else:
-        console.print(
-            f"\n❌ [bold red]Inconsistency detected! Check the report above.[/bold red]"
-        )
+        console.print("\n❌ [bold red]Inconsistency detected! Check the report above.[/bold red]")
 
     return all_passed

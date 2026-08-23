@@ -6,24 +6,23 @@ The main entry point for the OxidizedVision toolkit. All pipeline operations
 accessible through this CLI.
 """
 
-import typer
-import yaml
+import json
 import os
 import shutil
 import subprocess
-import json
-from pathlib import Path
 from typing import Optional
+
+import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import convert as convert_module
-from . import validate as validate_module
 from . import benchmark as benchmark_module
+from . import convert as convert_module
 from . import optimize as optimize_module
 from . import profile as profile_module
 from . import registry as registry_module
-from .config import load_config, Config
+from . import validate as validate_module
+from .config import load_config
 from .logging import configure_logging, get_logger
 
 app = typer.Typer(
@@ -70,11 +69,9 @@ def convert(
         registry_module.register_model(
             model_name,
             {"torchscript": ts_path, "onnx": onnx_path},
-            config=cfg.dict(),
+            config=cfg.model_dump(),
         )
-        logger.info(
-            "Conversion complete: ts=%s, onnx=%s", ts_path, onnx_path
-        )
+        logger.info("Conversion complete: ts=%s, onnx=%s", ts_path, onnx_path)
 
     except Exception as e:
         logger.error("Conversion failed: %s", e, exc_info=True)
@@ -117,6 +114,17 @@ def validate(
             console.print("[red]Could not find at least two models to compare.[/red]")
             raise typer.Exit(code=1)
 
+        # If the config doesn't pin an explicit checkpoint, the model was
+        # randomly initialized at convert-time. `convert` persists those
+        # exact weights alongside the exported models — reuse them here so
+        # the PyTorch comparison is against the weights that were actually
+        # exported, not a fresh (and differently-initialized) instance.
+        pytorch_checkpoint = cfg.model.checkpoint
+        if not pytorch_checkpoint:
+            exported_weights = os.path.join(output_dir, f"{model_name}_weights.pt")
+            if os.path.exists(exported_weights):
+                pytorch_checkpoint = exported_weights
+
         # Use config-level tolerances as defaults
         t_mae = tolerance_mae or cfg.validation.tolerance_mae
         t_cos = tolerance_cos_sim or cfg.validation.tolerance_cos_sim
@@ -130,7 +138,7 @@ def validate(
             num_tests=n_tests,
             model_source_path=cfg.model.path,
             model_class_name=cfg.model.class_name,
-            model_checkpoint=cfg.model.checkpoint,
+            model_checkpoint=pytorch_checkpoint,
         )
 
         if passed:
@@ -158,9 +166,15 @@ def benchmark(
     batch_size: int = typer.Option(1, help="Batch size."),
     output_format: str = typer.Option("table", help="Output format: 'table' or 'json'."),
     device: str = typer.Option("cpu", help="Device: 'cpu' or 'cuda'."),
-    input_shape: Optional[str] = typer.Option(None, help="Input shape as comma-separated dims (e.g., '1,3,256,256')."),
-    model_source: Optional[str] = typer.Option(None, help="Model source .py file (for 'pytorch' runner)."),
-    model_class: Optional[str] = typer.Option(None, help="Model class name (for 'pytorch' runner)."),
+    input_shape: Optional[str] = typer.Option(
+        None, help="Input shape as comma-separated dims (e.g., '1,3,256,256')."
+    ),
+    model_source: Optional[str] = typer.Option(
+        None, help="Model source .py file (for 'pytorch' runner)."
+    ),
+    model_class: Optional[str] = typer.Option(
+        None, help="Model class name (for 'pytorch' runner)."
+    ),
 ):
     """Benchmark model performance across different runners."""
     try:
@@ -225,7 +239,9 @@ def benchmark(
 @app.command()
 def optimize(
     input_path: str = typer.Argument(..., help="Path to the ONNX model to optimize."),
-    output_path: Optional[str] = typer.Option(None, help="Output path. Defaults to '<input>_optimized.onnx'."),
+    output_path: Optional[str] = typer.Option(
+        None, help="Output path. Defaults to '<input>_optimized.onnx'."
+    ),
     simplify: bool = typer.Option(True, help="Apply onnx-simplifier."),
     quantize: Optional[str] = typer.Option(None, help="Quantization mode: 'int8' or 'fp16'."),
     constant_folding: bool = typer.Option(True, help="Apply constant folding."),
@@ -282,7 +298,7 @@ def profile(
 # ──────────────────────────────── package ────────────────────────────────
 
 
-MAIN_RS_SERVER_TEMPLATE = '''\
+MAIN_RS_SERVER_TEMPLATE = """\
 use actix_web::{{post, get, web, App, HttpServer, Responder, HttpResponse}};
 use serde::{{Deserialize, Serialize}};
 use runner_core::{{Runner, RunnerConfig}};
@@ -349,9 +365,9 @@ async fn main() -> std::io::Result<()> {{
     HttpServer::new(move || App::new().app_data(app_state.clone()).service(health).service(predict))
         .bind(("127.0.0.1", args.port))?.run().await
 }}
-'''
+"""
 
-MAIN_RS_CLI_TEMPLATE = '''\
+MAIN_RS_CLI_TEMPLATE = """\
 use clap::Parser;
 use runner_core::{{Runner, RunnerConfig}};
 use runner_{runner}::{runner_struct};
@@ -381,13 +397,15 @@ fn main() -> anyhow::Result<()> {{
     println!("Output shape: {{:?}}", output.shape());
     Ok(())
 }}
-'''
+"""
 
 
 @app.command()
 def package(
     onnx: str = typer.Argument(..., help="Path to the ONNX model file."),
-    runner: str = typer.Option("tract", help="Runner backend: 'tract', 'ort', 'tch', or 'tensorrt'."),
+    runner: str = typer.Option(
+        "tract", help="Runner backend: 'tract', 'ort', 'tch', or 'tensorrt'."
+    ),
     out: str = typer.Option("./packaged", help="Output directory for the Rust crate."),
     template: str = typer.Option("server", help="Template: 'server' or 'cli'."),
     input_shape: str = typer.Option("1,3,256,256", help="Input shape."),
@@ -399,7 +417,9 @@ def package(
             raise typer.Exit(code=1)
 
         logger.info("Packaging %s with runner=%s, template=%s", onnx, runner, template)
-        console.print(f"\n📦 Packaging [bold cyan]{onnx}[/bold cyan] with runner [cyan]{runner}[/cyan]...")
+        console.print(
+            f"\n📦 Packaging [bold cyan]{onnx}[/bold cyan] with runner [cyan]{runner}[/cyan]..."
+        )
         os.makedirs(out, exist_ok=True)
 
         # Copy the model
@@ -469,12 +489,16 @@ serde = {{ version = "1.0", features = ["derive"] }}{extra_deps}
         # Generate README
         with open(os.path.join(out, "README.md"), "w") as f:
             f.write(f"# {os.path.basename(out)}\n\n")
-            f.write(f"Auto-generated by OxidizedVision.\n\n")
-            f.write(f"## Build\n\n```bash\ncargo build --release\n```\n\n")
+            f.write("Auto-generated by OxidizedVision.\n\n")
+            f.write("## Build\n\n```bash\ncargo build --release\n```\n\n")
             if template == "server":
-                f.write(f"## Run\n\n```bash\n./target/release/{os.path.basename(out)} --model model.onnx --port 8080\n```\n")
+                f.write(
+                    f"## Run\n\n```bash\n./target/release/{os.path.basename(out)} --model model.onnx --port 8080\n```\n"
+                )
             else:
-                f.write(f"## Run\n\n```bash\n./target/release/{os.path.basename(out)} --model model.onnx --input input.png --output output.png\n```\n")
+                f.write(
+                    f"## Run\n\n```bash\n./target/release/{os.path.basename(out)} --model model.onnx --input input.png --output output.png\n```\n"
+                )
 
         logger.info("Rust crate created at %s", out)
         console.print(f"\n✅ Rust crate created at [bold green]{out}[/bold green]")

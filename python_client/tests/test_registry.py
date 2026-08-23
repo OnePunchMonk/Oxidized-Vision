@@ -1,14 +1,11 @@
 """Tests for the model registry module."""
 
-import pytest
-import json
 from oxidizedvision.registry import (
-    register_model,
-    list_models,
-    get_model_info,
-    remove_model,
     _load_registry,
-    _save_registry,
+    get_model_info,
+    list_models,
+    register_model,
+    remove_model,
 )
 
 

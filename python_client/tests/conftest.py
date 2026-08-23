@@ -1,9 +1,6 @@
 """Shared test fixtures for OxidizedVision tests."""
 
 import pytest
-import os
-import torch
-from pathlib import Path
 
 
 @pytest.fixture
@@ -11,7 +8,7 @@ def tmp_model_dir(tmp_path):
     """Create a temporary directory with a simple PyTorch model."""
     model_file = tmp_path / "model.py"
     model_file.write_text(
-        '''
+        """
 import torch.nn as nn
 
 class SimpleModel(nn.Module):
@@ -27,7 +24,7 @@ class SimpleModel(nn.Module):
         x = self.pool(x)
         x = x.view(x.size(0), -1)
         return self.fc(x)
-'''
+"""
     )
     return tmp_path
 

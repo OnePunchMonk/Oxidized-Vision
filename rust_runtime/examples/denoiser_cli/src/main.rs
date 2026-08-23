@@ -1,9 +1,9 @@
+use anyhow::Result;
 use clap::Parser;
+use image::{io::Reader as ImageReader, DynamicImage, Rgb32FImage};
+use ndarray::{ArrayD, IxDyn};
 use runner_core::{Runner, RunnerConfig};
 use runner_tract::TractRunner;
-use ndarray::{ArrayD, IxDyn};
-use image::{io::Reader as ImageReader, DynamicImage, Rgb32FImage};
-use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about = "OxidizedVision image denoiser CLI")]
@@ -108,7 +108,10 @@ fn postprocess_and_save(
 }
 
 fn parse_float3(s: &str) -> Result<[f32; 3]> {
-    let parts: Vec<f32> = s.split(',').map(|v| v.trim().parse::<f32>()).collect::<std::result::Result<Vec<_>, _>>()?;
+    let parts: Vec<f32> = s
+        .split(',')
+        .map(|v| v.trim().parse::<f32>())
+        .collect::<std::result::Result<Vec<_>, _>>()?;
     if parts.len() != 3 {
         anyhow::bail!("Expected 3 comma-separated values, got {}", parts.len());
     }
@@ -134,7 +137,10 @@ fn main() -> Result<()> {
     let original_size = (img.width(), img.height());
     println!("   Original size: {}x{}", original_size.0, original_size.1);
 
-    println!("🔄 Preprocessing (resize to {}x{}, normalize)...", args.width, args.height);
+    println!(
+        "🔄 Preprocessing (resize to {}x{}, normalize)...",
+        args.width, args.height
+    );
     let input = preprocess_image(&img, args.height, args.width, &mean, &std_dev)?;
     println!("   Input tensor shape: {:?}", input.shape());
 

@@ -37,10 +37,7 @@ impl Runner for TensorRTRunner {
         }
 
         // Check if trtexec is available
-        let trtexec_available = Command::new("trtexec")
-            .arg("--help")
-            .output()
-            .is_ok();
+        let trtexec_available = Command::new("trtexec").arg("--help").output().is_ok();
 
         if !trtexec_available {
             bail!(
@@ -116,8 +113,7 @@ impl Runner for TensorRTRunner {
         }
 
         // Read output
-        let output_bytes = std::fs::read(&output_path)
-            .context("Failed to read trtexec output")?;
+        let output_bytes = std::fs::read(&output_path).context("Failed to read trtexec output")?;
 
         let output_floats: Vec<f32> = output_bytes
             .chunks_exact(4)

@@ -1,17 +1,17 @@
 """Tests for the validation module."""
 
-import pytest
-import numpy as np
 import os
+
+import numpy as np
+from oxidizedvision.config import Config
+from oxidizedvision.convert import convert_model
 from oxidizedvision.validate import (
-    calculate_mae,
     calculate_cosine_similarity,
+    calculate_mae,
     calculate_max_abs_error,
     calculate_rmse,
     validate_models,
 )
-from oxidizedvision.convert import convert_model
-from oxidizedvision.config import Config
 
 
 class TestMetrics:
@@ -81,6 +81,11 @@ class TestValidateModels:
             "onnx": onnx_path,
         }
 
+        # convert_model persists the exact (randomly-initialized) weights it
+        # exported, so the PyTorch comparison must use those same weights
+        # rather than a fresh, differently-initialized instance.
+        weights_path = os.path.join(cfg.export.output_dir, f"{cfg.export.model_name}_weights.pt")
+
         result = validate_models(
             model_paths,
             input_shape=cfg.model.input_shape,
@@ -88,6 +93,7 @@ class TestValidateModels:
             tolerance_cos_sim=0.99,
             model_source_path=cfg.model.path,
             model_class_name=cfg.model.class_name,
+            model_checkpoint=weights_path,
         )
         assert result is True
 

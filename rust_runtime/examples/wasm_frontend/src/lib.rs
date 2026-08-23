@@ -3,10 +3,10 @@
 //! WebAssembly frontend for running OxidizedVision models in the browser.
 //! Uses the tract runner to load ONNX models from bytes and run inference.
 
-use wasm_bindgen::prelude::*;
+use ndarray::{ArrayD, IxDyn};
 use runner_core::Runner;
 use runner_tract::TractRunner;
-use ndarray::{ArrayD, IxDyn};
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
@@ -54,7 +54,9 @@ pub fn run_inference_wasm(
     if input_data.len() != expected_len {
         return format!(
             "{{\"error\": \"Input data length {} doesn't match shape {:?} (expected {})\"}}",
-            input_data.len(), input_shape, expected_len
+            input_data.len(),
+            input_shape,
+            expected_len
         );
     }
 
@@ -79,7 +81,12 @@ pub fn run_inference_wasm(
             format!(
                 "{{\"status\": \"success\", \"output_shape\": [{}], \"data_preview\": [{}]}}",
                 output_shape.join(", "),
-                output_data.iter().take(10).cloned().collect::<Vec<_>>().join(", ")
+                output_data
+                    .iter()
+                    .take(10)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         }
         Err(e) => format!("{{\"error\": \"Inference failed: {}\"}}", e),

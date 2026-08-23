@@ -1,11 +1,9 @@
 """Tests for the profiling module."""
 
-import pytest
 import torch
 from oxidizedvision.profile import (
     count_parameters,
     estimate_model_size_mb,
-    get_layer_summary,
     profile_model,
 )
 
@@ -54,6 +52,6 @@ class TestProfileModel:
             model_class_name="SimpleModel",
             input_shape=[1, 3, 32, 32],
         )
-        layer_types = [l["type"] for l in result["layers"]]
+        layer_types = [layer["type"] for layer in result["layers"]]
         assert "Conv2d" in layer_types
         assert "ReLU" in layer_types

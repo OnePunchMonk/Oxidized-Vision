@@ -2165,6 +2165,7 @@ dependencies = [
  "anyhow",
  "ndarray 0.15.6",
  "serde",
+ "serde_json",
  "tracing",
 ]
 

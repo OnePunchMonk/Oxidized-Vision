@@ -5,20 +5,23 @@ Provides strongly-typed Pydantic models for the YAML configuration schema,
 ensuring reproducible and validated conversion pipelines.
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict, Any
 from pathlib import Path
+from typing import Optional
+
 import yaml
+from pydantic import BaseModel, Field, field_validator
 
 
 class ModelConfig(BaseModel):
     """Configuration for the source PyTorch model."""
+
     path: str = Field(..., description="Path to the Python file containing the model class.")
     class_name: str = Field(..., description="Name of the nn.Module class to instantiate.")
-    input_shape: List[int] = Field(..., description="Input tensor shape, e.g. [1, 3, 256, 256].")
+    input_shape: list[int] = Field(..., description="Input tensor shape, e.g. [1, 3, 256, 256].")
     checkpoint: Optional[str] = Field(None, description="Optional path to a .pt checkpoint file.")
 
-    @validator("input_shape")
+    @field_validator("input_shape")
+    @classmethod
     def validate_input_shape(cls, v):
         if len(v) < 2:
             raise ValueError("input_shape must have at least 2 dimensions")
@@ -29,6 +32,7 @@ class ModelConfig(BaseModel):
 
 class ExportConfig(BaseModel):
     """Configuration for the ONNX export step."""
+
     opset_version: int = Field(14, description="ONNX opset version.")
     do_constant_folding: bool = Field(True, description="Whether to apply constant folding.")
     output_dir: str = Field("out", description="Directory to save exported models.")
@@ -37,6 +41,7 @@ class ExportConfig(BaseModel):
 
 class RunnerConfig(BaseModel):
     """Configuration for a single inference runner."""
+
     name: str = Field(..., description="Runner name: 'tch', 'tract', or 'tensorrt'.")
     optimize: bool = Field(True, description="Whether to apply backend-specific optimizations.")
     use_cuda: Optional[bool] = Field(None, description="Whether to use CUDA (GPU runners only).")
@@ -44,6 +49,7 @@ class RunnerConfig(BaseModel):
 
 class ValidateConfig(BaseModel):
     """Configuration for the validation step."""
+
     num_tests: int = Field(1, description="Number of random inputs to validate with.")
     tolerance_mae: float = Field(1e-5, description="Maximum acceptable Mean Absolute Error.")
     tolerance_cos_sim: float = Field(0.999, description="Minimum acceptable Cosine Similarity.")
@@ -51,6 +57,7 @@ class ValidateConfig(BaseModel):
 
 class OptimizeConfig(BaseModel):
     """Configuration for the optimization step."""
+
     simplify: bool = Field(True, description="Apply onnx-simplifier.")
     quantize: Optional[str] = Field(None, description="Quantization mode: 'int8', 'fp16', or None.")
     constant_folding: bool = Field(True, description="Apply constant folding optimization.")
@@ -58,6 +65,7 @@ class OptimizeConfig(BaseModel):
 
 class BenchmarkConfig(BaseModel):
     """Configuration for benchmarking."""
+
     iters: int = Field(100, description="Number of benchmark iterations.")
     batch_size: int = Field(1, description="Batch size for benchmarking.")
     warmup_iters: int = Field(10, description="Number of warmup iterations.")
@@ -66,9 +74,10 @@ class BenchmarkConfig(BaseModel):
 
 class Config(BaseModel):
     """Top-level configuration for the OxidizedVision pipeline."""
+
     model: ModelConfig
     export: ExportConfig = ExportConfig()
-    runners: List[RunnerConfig] = []
+    runners: list[RunnerConfig] = []
     validation: ValidateConfig = ValidateConfig()
     optimize: OptimizeConfig = OptimizeConfig()
     benchmark: BenchmarkConfig = BenchmarkConfig()
@@ -76,13 +85,13 @@ class Config(BaseModel):
 
 def load_config(config_path: str) -> Config:
     """Load and validate a YAML configuration file.
-    
+
     Args:
         config_path: Path to the YAML config file.
-        
+
     Returns:
         Validated Config object.
-        
+
     Raises:
         FileNotFoundError: If the config file doesn't exist.
         ValidationError: If the config has invalid values.
@@ -91,7 +100,7 @@ def load_config(config_path: str) -> Config:
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
-    with open(path, "r") as f:
+    with open(path) as f:
         raw = yaml.safe_load(f)
 
     if raw is None:
@@ -102,7 +111,7 @@ def load_config(config_path: str) -> Config:
 
 def save_config(config: Config, config_path: str) -> None:
     """Save a Config object to a YAML file.
-    
+
     Args:
         config: Config object to save.
         config_path: Path to write the YAML file.
@@ -111,4 +120,4 @@ def save_config(config: Config, config_path: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(path, "w") as f:
-        yaml.dump(config.dict(), f, default_flow_style=False, sort_keys=False)
+        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)

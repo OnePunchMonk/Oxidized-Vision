@@ -7,18 +7,21 @@
 //! - **Prometheus metrics**: `/metrics` endpoint for observability.
 //! - **Health checking**: `/health` endpoint with per-model status.
 
-use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
-use serde::{Deserialize, Serialize};
-use runner_core::{Runner, RunnerConfig};
-use runner_tract::TractRunner;
-use runner_ort::OrtRunner;
-use ndarray::{ArrayD, IxDyn};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
-use std::time::{Duration, Instant};
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
+use ndarray::{ArrayD, IxDyn};
+use runner_core::{Runner, RunnerConfig};
+use runner_ort::OrtRunner;
+use runner_tract::TractRunner;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
+use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
-use tracing::{info, error, debug, instrument};
+use tracing::{debug, error, info, instrument};
 use tracing_actix_web::TracingLogger;
 
 // ─────────────────────────────── Configuration ───────────────────────────────
@@ -160,7 +163,10 @@ impl DynamicBatcher {
 
         {
             let mut queue = self.queue.lock().unwrap();
-            queue.push(BatchItem { input, responder: tx });
+            queue.push(BatchItem {
+                input,
+                responder: tx,
+            });
             should_flush = queue.len() >= self.max_batch_size;
         }
 
@@ -242,15 +248,19 @@ impl ServerMetrics {
 #[get("/health")]
 #[instrument(skip(data))]
 async fn health(data: web::Data<AppState>) -> impl Responder {
-    let models: Vec<ModelHealthEntry> = data.models.iter().map(|(name, entry)| {
-        let info = entry.runner.info();
-        ModelHealthEntry {
-            name: name.clone(),
-            backend: info.backend,
-            input_shape: info.input_shape,
-            status: "ready".to_string(),
-        }
-    }).collect();
+    let models: Vec<ModelHealthEntry> = data
+        .models
+        .iter()
+        .map(|(name, entry)| {
+            let info = entry.runner.info();
+            ModelHealthEntry {
+                name: name.clone(),
+                backend: info.backend,
+                input_shape: info.input_shape,
+                status: "ready".to_string(),
+            }
+        })
+        .collect();
 
     HttpResponse::Ok().json(HealthResponse {
         status: "healthy".to_string(),
@@ -263,9 +273,18 @@ async fn health(data: web::Data<AppState>) -> impl Responder {
 #[get("/metrics")]
 #[instrument(skip(data))]
 async fn metrics(data: web::Data<AppState>) -> impl Responder {
-    let total_pending: usize = data.models.values().map(|e| e.batcher.pending_count()).sum();
+    let total_pending: usize = data
+        .models
+        .values()
+        .map(|e| e.batcher.pending_count())
+        .sum();
     let any_batching = data.models.values().any(|e| e.batcher.max_batch_size > 1);
-    let max_bs = data.models.values().map(|e| e.batcher.max_batch_size).max().unwrap_or(0);
+    let max_bs = data
+        .models
+        .values()
+        .map(|e| e.batcher.max_batch_size)
+        .max()
+        .unwrap_or(0);
 
     HttpResponse::Ok().json(MetricsResponse {
         total_requests: data.metrics.total_requests.load(Ordering::Relaxed),
@@ -280,10 +299,7 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
 /// Predict on the default model.
 #[post("/predict")]
 #[instrument(skip(req, data), fields(model = %data.default_model))]
-async fn predict(
-    req: web::Json<InferenceRequest>,
-    data: web::Data<AppState>,
-) -> impl Responder {
+async fn predict(req: web::Json<InferenceRequest>, data: web::Data<AppState>) -> impl Responder {
     let model_name = &data.default_model;
     run_inference(model_name, &req, &data).await
 }
@@ -322,7 +338,10 @@ async fn run_inference(
         }
     };
 
-    let shape = req.shape.clone().unwrap_or_else(|| entry.config.input_shape.clone());
+    let shape = req
+        .shape
+        .clone()
+        .unwrap_or_else(|| entry.config.input_shape.clone());
 
     if shape.is_empty() {
         data.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
@@ -341,7 +360,9 @@ async fn run_inference(
                 return HttpResponse::BadRequest().json(ErrorResponse {
                     error: format!(
                         "Data length {} doesn't match shape {:?} (expected {})",
-                        d.len(), shape, numel
+                        d.len(),
+                        shape,
+                        numel
                     ),
                     request_id,
                 });
@@ -402,16 +423,20 @@ async fn run_inference(
 #[get("/models")]
 #[instrument(skip(data))]
 async fn list_models(data: web::Data<AppState>) -> impl Responder {
-    let models: Vec<serde_json::Value> = data.models.iter().map(|(name, entry)| {
-        let info = entry.runner.info();
-        serde_json::json!({
-            "name": name,
-            "backend": info.backend,
-            "input_shape": info.input_shape,
-            "batching_enabled": entry.batcher.max_batch_size > 1,
-            "max_batch_size": entry.batcher.max_batch_size,
+    let models: Vec<serde_json::Value> = data
+        .models
+        .iter()
+        .map(|(name, entry)| {
+            let info = entry.runner.info();
+            serde_json::json!({
+                "name": name,
+                "backend": info.backend,
+                "input_shape": info.input_shape,
+                "batching_enabled": entry.batcher.max_batch_size > 1,
+                "max_batch_size": entry.batcher.max_batch_size,
+            })
         })
-    }).collect();
+        .collect();
 
     HttpResponse::Ok().json(serde_json::json!({ "models": models }))
 }
@@ -459,7 +484,11 @@ async fn main() -> std::io::Result<()> {
     let input_shape: Vec<usize> = args
         .input_shape
         .split(',')
-        .map(|s| s.trim().parse::<usize>().expect("Invalid input shape dimension"))
+        .map(|s| {
+            s.trim()
+                .parse::<usize>()
+                .expect("Invalid input shape dimension")
+        })
         .collect();
 
     // Load models
@@ -510,11 +539,14 @@ async fn main() -> std::io::Result<()> {
             first_model_name = name.clone();
         }
 
-        models.insert(name.clone(), ModelEntry {
-            runner,
-            config,
-            batcher,
-        });
+        models.insert(
+            name.clone(),
+            ModelEntry {
+                runner,
+                config,
+                batcher,
+            },
+        );
 
         info!(name = %name, "Model loaded successfully");
     }
@@ -534,17 +566,29 @@ async fn main() -> std::io::Result<()> {
     );
 
     println!();
-    println!("🚀 OxidizedVision server starting at http://127.0.0.1:{}", args.port);
+    println!(
+        "🚀 OxidizedVision server starting at http://127.0.0.1:{}",
+        args.port
+    );
     println!("   Models loaded: {}", app_state.models.len());
     for (name, entry) in app_state.models.iter() {
         let info = entry.runner.info();
-        println!("     📦 {} ({}), input: {:?}", name, info.backend, info.input_shape);
+        println!(
+            "     📦 {} ({}), input: {:?}",
+            name, info.backend, info.input_shape
+        );
     }
-    println!("   Dynamic batching: {}", if args.max_batch_size > 0 {
-        format!("enabled (max_batch_size={}, max_wait={}ms)", args.max_batch_size, args.max_wait_ms)
-    } else {
-        "disabled".to_string()
-    });
+    println!(
+        "   Dynamic batching: {}",
+        if args.max_batch_size > 0 {
+            format!(
+                "enabled (max_batch_size={}, max_wait={}ms)",
+                args.max_batch_size, args.max_wait_ms
+            )
+        } else {
+            "disabled".to_string()
+        }
+    );
     println!("   Endpoints:");
     println!("     POST /predict              - Inference (default model)");
     println!("     POST /predict/<model_name> - Inference (named model)");

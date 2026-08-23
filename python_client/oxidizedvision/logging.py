@@ -11,15 +11,13 @@ Usage:
     logger.info("Converting model", extra={"model": "unet", "format": "onnx"})
 """
 
-import logging
 import json
+import logging
 import sys
 from datetime import datetime, timezone
-from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
-
 
 _CONFIGURED = False
 
@@ -41,11 +39,28 @@ class StructuredFormatter(logging.Formatter):
         # Include any extra fields passed via `extra={}`
         for key in record.__dict__:
             if key not in (
-                "name", "msg", "args", "created", "relativeCreated",
-                "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-                "levelno", "msecs", "pathname", "filename", "module",
-                "thread", "threadName", "processName", "process",
-                "message", "levelname", "taskName",
+                "name",
+                "msg",
+                "args",
+                "created",
+                "relativeCreated",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "levelno",
+                "msecs",
+                "pathname",
+                "filename",
+                "module",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
+                "levelname",
+                "taskName",
             ):
                 log_entry[key] = record.__dict__[key]
 

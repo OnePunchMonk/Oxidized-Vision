@@ -82,6 +82,7 @@ pub fn shape_to_ix(shape: &[usize]) -> IxDyn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::Dimension;
 
     #[test]
     fn test_model_info_serialize() {

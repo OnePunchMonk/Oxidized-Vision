@@ -1,17 +1,16 @@
 """Tests for the conversion module."""
 
-import pytest
 import os
+
+import pytest
 import torch
-from oxidizedvision.convert import convert_model, load_model, _import_model_from_path
 from oxidizedvision.config import Config
+from oxidizedvision.convert import _import_model_from_path, convert_model, load_model
 
 
 class TestImportModel:
     def test_import_valid_model(self, tmp_model_dir):
-        model_class = _import_model_from_path(
-            str(tmp_model_dir / "model.py"), "SimpleModel"
-        )
+        model_class = _import_model_from_path(str(tmp_model_dir / "model.py"), "SimpleModel")
         assert model_class is not None
         model = model_class()
         assert isinstance(model, torch.nn.Module)
@@ -22,9 +21,7 @@ class TestImportModel:
 
     def test_import_nonexistent_class(self, tmp_model_dir):
         with pytest.raises(ImportError, match="not found"):
-            _import_model_from_path(
-                str(tmp_model_dir / "model.py"), "NonExistentClass"
-            )
+            _import_model_from_path(str(tmp_model_dir / "model.py"), "NonExistentClass")
 
 
 class TestConvertModel:
@@ -50,8 +47,8 @@ class TestConvertModel:
         cfg = Config(**simple_config)
         _, onnx_path = convert_model(cfg)
 
-        import onnxruntime as ort
         import numpy as np
+        import onnxruntime as ort
 
         session = ort.InferenceSession(onnx_path)
         input_name = session.get_inputs()[0].name

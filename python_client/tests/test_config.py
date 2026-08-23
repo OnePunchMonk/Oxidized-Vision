@@ -1,15 +1,14 @@
 """Tests for the configuration module."""
 
+import os
+
 import pytest
 import yaml
-import os
 from oxidizedvision.config import (
     Config,
-    ModelConfig,
     ExportConfig,
+    ModelConfig,
     ValidateConfig,
-    OptimizeConfig,
-    BenchmarkConfig,
     load_config,
     save_config,
 )

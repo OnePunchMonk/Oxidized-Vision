@@ -7,8 +7,8 @@ Tracks converted models and their metadata in a local JSON-based registry.
 import json
 import os
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Optional
+
 from rich.console import Console
 from rich.table import Table
 
@@ -22,16 +22,16 @@ def _get_registry_path(base_dir: str = ".") -> str:
     return os.path.join(base_dir, REGISTRY_FILENAME)
 
 
-def _load_registry(base_dir: str = ".") -> Dict[str, Any]:
+def _load_registry(base_dir: str = ".") -> dict[str, Any]:
     """Load the registry from disk."""
     path = _get_registry_path(base_dir)
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             return json.load(f)
     return {"models": {}, "version": "1.0"}
 
 
-def _save_registry(registry: Dict[str, Any], base_dir: str = ".") -> None:
+def _save_registry(registry: dict[str, Any], base_dir: str = ".") -> None:
     """Save the registry to disk."""
     path = _get_registry_path(base_dir)
     with open(path, "w") as f:
@@ -40,12 +40,12 @@ def _save_registry(registry: Dict[str, Any], base_dir: str = ".") -> None:
 
 def register_model(
     model_name: str,
-    model_paths: Dict[str, str],
-    config: Optional[Dict[str, Any]] = None,
+    model_paths: dict[str, str],
+    config: Optional[dict[str, Any]] = None,
     base_dir: str = ".",
 ) -> None:
     """Register a converted model in the local registry.
-    
+
     Args:
         model_name: Name of the model.
         model_paths: Dict mapping format to path (e.g. {'torchscript': 'out/model.pt'}).
@@ -71,12 +71,12 @@ def register_model(
     console.print(f"📦 Registered model [bold cyan]{model_name}[/bold cyan] in registry.")
 
 
-def list_models(base_dir: str = ".") -> List[Dict[str, Any]]:
+def list_models(base_dir: str = ".") -> list[dict[str, Any]]:
     """List all registered models.
-    
+
     Args:
         base_dir: Base directory for the registry file.
-        
+
     Returns:
         List of model info dicts.
     """
@@ -87,13 +87,13 @@ def list_models(base_dir: str = ".") -> List[Dict[str, Any]]:
     return models
 
 
-def get_model_info(model_name: str, base_dir: str = ".") -> Optional[Dict[str, Any]]:
+def get_model_info(model_name: str, base_dir: str = ".") -> Optional[dict[str, Any]]:
     """Get info for a specific model.
-    
+
     Args:
         model_name: Name of the model.
         base_dir: Base directory for the registry file.
-        
+
     Returns:
         Model info dict, or None if not found.
     """
@@ -105,11 +105,11 @@ def get_model_info(model_name: str, base_dir: str = ".") -> Optional[Dict[str, A
 
 def remove_model(model_name: str, base_dir: str = ".") -> bool:
     """Remove a model from the registry (does not delete files).
-    
+
     Args:
         model_name: Name of the model to remove.
         base_dir: Base directory for the registry file.
-        
+
     Returns:
         True if removed, False if not found.
     """
@@ -139,7 +139,11 @@ def print_model_list(base_dir: str = ".") -> None:
     for model in models:
         formats = ", ".join(model.get("paths", {}).keys())
         total_size = sum(model.get("file_sizes", {}).values())
-        size_str = f"{total_size / 1024:.1f} KB" if total_size < 1024 * 1024 else f"{total_size / (1024 * 1024):.1f} MB"
+        size_str = (
+            f"{total_size / 1024:.1f} KB"
+            if total_size < 1024 * 1024
+            else f"{total_size / (1024 * 1024):.1f} MB"
+        )
         created = model.get("created_at", "N/A")[:19]
         table.add_row(model["name"], formats, size_str, created)
 
@@ -165,7 +169,7 @@ def print_model_info(model_name: str, base_dir: str = ".") -> None:
             console.print(f"      {exists} [{fmt}] {path} ({size / 1024:.1f} KB)")
 
     if info.get("config"):
-        console.print(f"\n   ⚙️  Config:")
+        console.print("\n   ⚙️  Config:")
         config = info["config"]
         if "model" in config:
             console.print(f"      Class: {config['model'].get('class_name', 'N/A')}")

@@ -1,8 +1,7 @@
 """Tests for the CLI module."""
 
-import pytest
-from typer.testing import CliRunner
 from oxidizedvision.cli import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

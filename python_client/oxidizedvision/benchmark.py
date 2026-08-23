@@ -4,13 +4,14 @@ OxidizedVision — Benchmarking module.
 Measures latency, throughput, and memory usage across different model runners.
 """
 
+import os
 import time
+from typing import Any, Optional
+
 import numpy as np
-import torch
 import onnxruntime as ort
 import psutil
-import os
-from typing import List, Dict, Any, Optional
+import torch
 from rich.console import Console
 
 from .convert import _import_model_from_path
@@ -27,11 +28,11 @@ def _warmup(run_fn, iters: int = 10):
 def _benchmark_pytorch(
     model_source_path: str,
     model_class_name: str,
-    input_shape: List[int],
+    input_shape: list[int],
     checkpoint: Optional[str],
     iters: int,
     device: str = "cpu",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Benchmark a native PyTorch model."""
     model_class = _import_model_from_path(model_source_path, model_class_name)
     model = model_class()
@@ -54,10 +55,10 @@ def _benchmark_pytorch(
 
 def _benchmark_torchscript(
     model_path: str,
-    input_shape: List[int],
+    input_shape: list[int],
     iters: int,
     device: str = "cpu",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Benchmark a TorchScript model."""
     torch_device = torch.device(device)
     model = torch.jit.load(model_path, map_location=torch_device)
@@ -75,11 +76,11 @@ def _benchmark_torchscript(
 
 def _benchmark_onnx(
     model_path: str,
-    input_shape: List[int],
+    input_shape: list[int],
     iters: int,
     device: str = "cpu",
     graph_optimization_level: Optional["ort.GraphOptimizationLevel"] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Benchmark an ONNX model via onnxruntime.
 
     Args:
@@ -89,7 +90,11 @@ def _benchmark_onnx(
             used by the Rust `runner_ort` backend, for an apples-to-apples
             comparison against `tract`.
     """
-    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
+    providers = (
+        ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        if device == "cuda"
+        else ["CPUExecutionProvider"]
+    )
     sess_options = ort.SessionOptions()
     if graph_optimization_level is not None:
         sess_options.graph_optimization_level = graph_optimization_level
@@ -103,7 +108,7 @@ def _benchmark_onnx(
     return _measure(run_fn, iters)
 
 
-def _measure(run_fn, iters: int, warmup_iters: int = 10) -> Dict[str, Any]:
+def _measure(run_fn, iters: int, warmup_iters: int = 10) -> dict[str, Any]:
     """Core measurement: warmup, then time `iters` runs and measure memory."""
     process = psutil.Process(os.getpid())
 
@@ -148,14 +153,14 @@ def measure_performance(
     runner: str,
     iters: int,
     batch_size: int,
-    input_shape: Optional[List[int]] = None,
+    input_shape: Optional[list[int]] = None,
     device: str = "cpu",
     model_source_path: Optional[str] = None,
     model_class_name: Optional[str] = None,
     model_checkpoint: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Measure latency, throughput, and memory for a given model and runner.
-    
+
     Args:
         model_path: Path to the model file (.pt or .onnx).
         runner: Runner name ('pytorch', 'torchscript', 'tract', 'onnx', 'ort').
@@ -166,7 +171,7 @@ def measure_performance(
         model_source_path: For 'pytorch' runner — path to the .py file.
         model_class_name: For 'pytorch' runner — class name.
         model_checkpoint: For 'pytorch' runner — optional checkpoint path.
-        
+
     Returns:
         Dict with benchmark results.
     """
@@ -212,17 +217,17 @@ def measure_performance(
 
 def run_benchmarks(
     model_path: str,
-    runners: List[str],
+    runners: list[str],
     iters: int,
     batch_size: int,
-    input_shape: Optional[List[int]] = None,
+    input_shape: Optional[list[int]] = None,
     device: str = "cpu",
     model_source_path: Optional[str] = None,
     model_class_name: Optional[str] = None,
     model_checkpoint: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Run benchmarks for a list of runners.
-    
+
     Args:
         model_path: Path to the model file (.pt or .onnx).
         runners: List of runner names.
@@ -233,7 +238,7 @@ def run_benchmarks(
         model_source_path: For 'pytorch' runner.
         model_class_name: For 'pytorch' runner.
         model_checkpoint: For 'pytorch' runner.
-        
+
     Returns:
         List of benchmark result dicts.
     """
@@ -246,7 +251,9 @@ def run_benchmarks(
         if runner in ("tract", "onnx", "ort"):
             current_model_path = model_path.replace(".pt", ".onnx")
             if not os.path.exists(current_model_path):
-                console.print(f"  [yellow]Warning: ONNX model not found at {current_model_path}. Skipping.[/yellow]")
+                console.print(
+                    f"  [yellow]Warning: ONNX model not found at {current_model_path}. Skipping.[/yellow]"
+                )
                 continue
 
         try:
@@ -262,7 +269,9 @@ def run_benchmarks(
                 model_checkpoint=model_checkpoint,
             )
             results.append(result)
-            console.print(f"  ✅ Done — avg: {result['avg_latency_ms']}ms, throughput: {result['throughput_per_sec']}/s")
+            console.print(
+                f"  ✅ Done — avg: {result['avg_latency_ms']}ms, throughput: {result['throughput_per_sec']}/s"
+            )
         except Exception as e:
             console.print(f"  [red]Error benchmarking {runner}: {e}[/red]")
 

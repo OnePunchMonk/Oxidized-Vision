@@ -9,14 +9,14 @@ __version__ = "1.0.1"
 __author__ = "Avaya Aggarwal"
 __email__ = "aggarwal.avaya27@gmail.com"
 
-from .config import Config, load_config, save_config, ModelConfig, ExportConfig
-from .convert import convert_model, load_model, convert_to_torchscript, convert_to_onnx
-from .validate import validate_models, calculate_mae, calculate_cosine_similarity
-from .benchmark import run_benchmarks, measure_performance
-from .optimize import optimize_model, simplify_onnx, quantize_onnx
-from .profile import profile_model, print_profile
-from .registry import register_model, list_models, get_model_info
+from .benchmark import measure_performance, run_benchmarks
+from .config import Config, ExportConfig, ModelConfig, load_config, save_config
+from .convert import convert_model, convert_to_onnx, convert_to_torchscript, load_model
 from .logging import configure_logging, get_logger
+from .optimize import optimize_model, quantize_onnx, simplify_onnx
+from .profile import print_profile, profile_model
+from .registry import get_model_info, list_models, register_model
+from .validate import calculate_cosine_similarity, calculate_mae, validate_models
 
 __all__ = [
     # Config
