@@ -13,7 +13,7 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 | Feature | Description |
 |---|---|
 | 🔄 **Model Conversion** | PyTorch → TorchScript → ONNX with a single command |
-| ⚡ **Optimization** | ONNX graph simplification, constant folding, dynamic/static (calibration-based) INT8, FP16 quantization |
+| ⚡ **Optimization** | ONNX graph simplification, constant folding, dynamic/static (calibration-based) INT8, FP16 quantization, magnitude pruning |
 | ✅ **Validation** | Numerical consistency checks (MAE, RMSE, Cosine Similarity) across formats |
 | 📊 **Benchmarking** | Latency (avg, p50, p95, p99), throughput, and memory profiling |
 | 🔬 **Profiling** | Parameter count, model size, per-layer breakdown |
@@ -77,8 +77,8 @@ WASM["WASM Module"]
 # From PyPI
 pip install oxidizedvision
 
-# From source (development)
-pip install -e "./python_client[dev]"
+# From source (development, run from the repo root)
+pip install -e ".[dev]"
 ```
 
 ### 2. Create a Config
@@ -101,6 +101,11 @@ validate:
 benchmark:
   iters: 100
   device: cpu
+
+# Optional: prune the PyTorch model before export (see "Pruning" below)
+# optimize:
+#   pruning_amount: 0.3       # zero out 30% of Conv/Linear weights
+#   pruning_structured: false # true = zero whole output channels instead
 ```
 
 ### 3. Run the Pipeline
@@ -160,6 +165,29 @@ oxidizedvision --json-log convert config.yml
 |---|---|
 | `--verbose` / `-v` | Enable DEBUG-level logging |
 | `--json-log` | Emit logs as JSON lines (for CI / production) |
+
+### Pruning
+
+Set `optimize.pruning_amount` (and optionally `pruning_structured`) in a
+config's YAML — pruning happens on the PyTorch model before export, so it's
+part of `convert`, not the separate `optimize` ONNX-stage command:
+
+```yaml
+optimize:
+  pruning_amount: 0.3        # zero out 30% of Conv2d/Conv1d/Linear weights
+  pruning_structured: false  # false: unstructured (individual weights)
+                              # true:  structured (whole output channels)
+```
+
+**What this actually gets you today:** a smaller, more compressible
+checkpoint (fewer/zeroed nonzero weights) and a documented sparsity
+percentage. It does **not** speed up inference on any of this repo's
+backends (ONNX Runtime, tract, LibTorch) — they all run dense kernels that
+still multiply through the zeros. Structured pruning zeros whole output
+channels, which is the prerequisite for *actually* shrinking those tensors
+and cutting FLOPs, but this step doesn't yet re-slice the model to drop
+the zeroed channels. Use it for compression today; it's the foundation
+real channel removal (and thus a genuine latency win) would build on.
 
 ---
 

@@ -171,6 +171,15 @@ def convert_model(config: dict) -> tuple[str, str]:
 
     model = load_model(cfg)
 
+    if cfg.optimize.pruning_amount is not None:
+        from .prune import prune_model
+
+        model, _ = prune_model(
+            model,
+            amount=cfg.optimize.pruning_amount,
+            structured=cfg.optimize.pruning_structured,
+        )
+
     output_dir = cfg.export.output_dir
     model_name = cfg.export.model_name
     input_shape = cfg.model.input_shape

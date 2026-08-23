@@ -61,6 +61,23 @@ class OptimizeConfig(BaseModel):
     simplify: bool = Field(True, description="Apply onnx-simplifier.")
     quantize: Optional[str] = Field(None, description="Quantization mode: 'int8', 'fp16', or None.")
     constant_folding: bool = Field(True, description="Apply constant folding optimization.")
+    pruning_amount: Optional[float] = Field(
+        None,
+        description=(
+            "Fraction (0-1) of Conv2d/Linear weights to zero out via global L1 "
+            "magnitude pruning, applied to the PyTorch model before export. "
+            "None disables pruning."
+        ),
+    )
+    pruning_structured: bool = Field(
+        False,
+        description=(
+            "If true, zero out whole output channels (structured, via ln_structured) "
+            "instead of individual weights (unstructured, via global L1 magnitude). "
+            "Structured pruning is a prerequisite for actual channel removal / FLOP "
+            "reduction; this step only zeros channels; see prune.py docstring."
+        ),
+    )
 
 
 class BenchmarkConfig(BaseModel):
