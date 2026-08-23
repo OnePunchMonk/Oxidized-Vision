@@ -37,6 +37,7 @@ graph TD
     subgraph "Rust: Inference Runtimes"
         B --> RT1("runner_tch (LibTorch)");
         D --> RT2("runner_tract (pure Rust)");
+        D --> RT4("runner_ort (ONNX Runtime, fused kernels)");
         E --> RT3("runner_tensorrt (GPU)");
     end
 
@@ -47,6 +48,7 @@ graph TD
         RT3 --> J[GPU Server];
         RT1 --> K[REST API Server];
         RT2 --> K;
+        RT4 --> K;
     end
 ```
 
@@ -109,9 +111,22 @@ Key design decisions:
 -   **Pros**: Maximum GPU performance
 -   **Cons**: Requires TensorRT SDK installation
 
+#### `runner_ort`
+
+-   **Backend**: `ort` crate (Microsoft ONNX Runtime bindings)
+-   **Model Format**: ONNX (`.onnx`)
+-   **Supports**: CPU (oneDNN-backed) and CUDA GPU inference (behind the `cuda` feature)
+-   **Special**: Loads with `GraphOptimizationLevel::Level3`, fusing common vision-backbone
+    patterns (Conv+BatchNorm+Activation, MatMul+Add, LayerNorm, GELU) ahead of time
+-   **Pros**: Broader/faster kernel coverage than `tract` for standard CNN/ViT models
+-   **Cons**: Not pure-Rust (links the ONNX Runtime binary), no WASM support
+
 ### 2.3. Example Applications (`rust_runtime/examples/`)
 
--   **`image_server`**: `actix-web` REST API with `/predict` and `/health` endpoints, JSON I/O, configurable input shapes.
+-   **`image_server`**: `actix-web` REST API, backend-selectable at runtime (`--backend tract|ort`).
+    `/predict` and `/predict/{model_name}` take a raw flattened-tensor JSON body; `/predict/image`
+    and `/predict/image/{model_name}` take a raw image upload and preprocess it (SIMD decode/resize/
+    normalize) in Rust before inference. Also exposes `/health`, `/metrics`, and `/models`.
 -   **`denoiser_cli`**: CLI tool with proper image preprocessing (resize, normalize, HWC↔CHW), inference, and postprocessing (denormalize, save).
 -   **`wasm_frontend`**: Browser-based inference with model upload, configurable input shapes, and styled results display.
 
