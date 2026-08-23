@@ -23,21 +23,35 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e "."
 
-    - name: Convert example model
+    - name: Convert example models
       run: |
         python -m oxidizedvision.cli convert examples/example_unet/config.yml
+        python -m oxidizedvision.cli convert examples/example_detector/config.yml
+        python -m oxidizedvision.cli convert examples/example_pointnet/config.yml
 
     - name: Run benchmarks
       run: |
         python benchmarks/run_benchmark.py \
-          --model out/model.pt \
+          --model out/unet.pt \
           --runners torchscript,tract,ort \
           --iters 50 \
-          --format json > benchmark_results.json
-        cat benchmark_results.json
+          --format json > benchmark_results_unet.json
+        python benchmarks/run_benchmark.py \
+          --model out/detector.pt \
+          --input-shape 1,3,320,320 \
+          --runners torchscript,tract,ort \
+          --iters 50 \
+          --format json > benchmark_results_detector.json
+        python benchmarks/run_benchmark.py \
+          --model out/pointnet.pt \
+          --input-shape 1,3,1024 \
+          --runners torchscript,tract,ort \
+          --iters 50 \
+          --format json > benchmark_results_pointnet.json
+        cat benchmark_results_unet.json benchmark_results_detector.json benchmark_results_pointnet.json
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
-        path: benchmark_results.json
+        path: benchmark_results_*.json
