@@ -1,0 +1,33 @@
+model:
+  path: examples/example_pointnet/model.py
+  class_name: PointNetClassifier
+  input_shape: [1, 3, 1024]  # [batch, xyz, num_points]
+  # checkpoint: checkpoints/pointnet_ckpt.pt  # Optional: path to pretrained weights
+
+export:
+  opset_version: 14
+  do_constant_folding: true
+  output_dir: out
+  model_name: pointnet
+
+runners:
+  - name: ort
+    optimize: true
+  - name: tract
+    optimize: true
+
+validation:
+  num_tests: 3
+  tolerance_mae: 1e-4
+  tolerance_cos_sim: 0.999
+
+optimize:
+  simplify: true
+  quantize: null  # Set to 'int8', 'static_int8', or 'fp16' for quantization
+  constant_folding: true
+
+benchmark:
+  iters: 50
+  batch_size: 1
+  warmup_iters: 10
+  device: cpu

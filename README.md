@@ -271,7 +271,9 @@ Oxidized-Vision/
 ├── tools/                     # Standalone scripts
 ├── benchmarks/                # Benchmark infrastructure
 ├── examples/                  # User-facing examples
-│   └── example_unet/         # Complete UNet example
+│   ├── example_unet/          # 2D segmentation: UNet with skip connections
+│   ├── example_detector/      # 2D detection: compact YOLO-style detector
+│   └── example_pointnet/      # 3D vision: PointNet point-cloud classifier
 ├── docs/                      # Architecture docs
 └── .github/workflows/         # CI/CD + PyPI auto-deploy
 ```
