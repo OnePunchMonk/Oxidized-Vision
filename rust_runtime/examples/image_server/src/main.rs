@@ -24,6 +24,8 @@ use tokio::sync::oneshot;
 use tracing::{debug, error, info, instrument};
 use tracing_actix_web::TracingLogger;
 
+mod preprocess;
+
 // ─────────────────────────────── Configuration ───────────────────────────────
 
 #[derive(Parser, Debug)]
@@ -321,21 +323,10 @@ async fn run_inference(
     data: &web::Data<AppState>,
 ) -> HttpResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
-    data.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
 
-    let entry = match data.models.get(model_name) {
-        Some(e) => e,
-        None => {
-            data.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
-            let available: Vec<&String> = data.models.keys().collect();
-            return HttpResponse::NotFound().json(ErrorResponse {
-                error: format!(
-                    "Model '{}' not found. Available models: {:?}",
-                    model_name, available
-                ),
-                request_id,
-            });
-        }
+    let entry = match get_model_entry(model_name, data, &request_id) {
+        Ok(e) => e,
+        Err(resp) => return *resp,
     };
 
     let shape = req
@@ -383,10 +374,90 @@ async fn run_inference(
         }
     };
 
+    run_and_respond(model_name, entry, input, data, request_id).await
+}
+
+/// Predict on the default model from a raw image upload (JPEG/PNG/etc).
+/// Decodes, SIMD-resizes to the model's configured input shape, and
+/// normalizes in one fused pass (see `preprocess::decode_resize_normalize`)
+/// instead of requiring the caller to pre-process into a flat float array.
+#[post("/predict/image")]
+#[instrument(skip(body, data), fields(model = %data.default_model))]
+async fn predict_image(body: web::Bytes, data: web::Data<AppState>) -> impl Responder {
+    let model_name = data.default_model.clone();
+    run_inference_from_image(&model_name, &body, &data).await
+}
+
+/// Predict on a named model from a raw image upload.
+#[post("/predict/image/{model_name}")]
+#[instrument(skip(body, data), fields(model = %model_name))]
+async fn predict_image_named(
+    model_name: web::Path<String>,
+    body: web::Bytes,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    run_inference_from_image(&model_name, &body, &data).await
+}
+
+async fn run_inference_from_image(
+    model_name: &str,
+    image_bytes: &[u8],
+    data: &web::Data<AppState>,
+) -> HttpResponse {
+    let request_id = uuid::Uuid::new_v4().to_string();
+
+    let entry = match get_model_entry(model_name, data, &request_id) {
+        Ok(e) => e,
+        Err(resp) => return *resp,
+    };
+
+    let shape = &entry.config.input_shape;
+    if shape.len() != 4 {
+        data.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            error: format!(
+                "Model '{}' has input shape {:?}; image preprocessing requires a 4D \
+                 [N, C, H, W] shape",
+                model_name, shape
+            ),
+            request_id,
+        });
+    }
+    let (target_h, target_w) = (shape[2] as u32, shape[3] as u32);
+
+    let input = match preprocess::decode_resize_normalize(
+        image_bytes,
+        target_h,
+        target_w,
+        preprocess::NormalizeStats::default(),
+    ) {
+        Ok(arr) => arr,
+        Err(e) => {
+            data.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
+            return HttpResponse::BadRequest().json(ErrorResponse {
+                error: format!("Failed to preprocess image: {}", e),
+                request_id,
+            });
+        }
+    };
+
+    run_and_respond(model_name, entry, input, data, request_id).await
+}
+
+/// Shared inference tail: run the model on a prepared input tensor and
+/// build the HTTP response. Used by both the raw-tensor and image-upload
+/// predict paths.
+async fn run_and_respond(
+    model_name: &str,
+    entry: &ModelEntry,
+    input: ArrayD<f32>,
+    data: &web::Data<AppState>,
+    request_id: String,
+) -> HttpResponse {
+    data.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
+
     let start = Instant::now();
-
     let result = entry.batcher.submit(input, &entry.runner).await;
-
     let latency = start.elapsed();
     let latency_ms = latency.as_secs_f64() * 1000.0;
 
@@ -417,6 +488,25 @@ async fn run_inference(
             })
         }
     }
+}
+
+/// Look up a model by name, returning a structured 404 response on miss.
+fn get_model_entry<'a>(
+    model_name: &str,
+    data: &'a web::Data<AppState>,
+    request_id: &str,
+) -> Result<&'a ModelEntry, Box<HttpResponse>> {
+    data.models.get(model_name).ok_or_else(|| {
+        data.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
+        let available: Vec<&String> = data.models.keys().collect();
+        Box::new(HttpResponse::NotFound().json(ErrorResponse {
+            error: format!(
+                "Model '{}' not found. Available models: {:?}",
+                model_name, available
+            ),
+            request_id: request_id.to_string(),
+        }))
+    })
 }
 
 /// List all loaded models.
@@ -590,8 +680,14 @@ async fn main() -> std::io::Result<()> {
         }
     );
     println!("   Endpoints:");
-    println!("     POST /predict              - Inference (default model)");
-    println!("     POST /predict/<model_name> - Inference (named model)");
+    println!("     POST /predict                    - Inference from a raw tensor (default model)");
+    println!("     POST /predict/<model_name>       - Inference from a raw tensor (named model)");
+    println!(
+        "     POST /predict/image              - Inference from a raw image upload (default model)"
+    );
+    println!(
+        "     POST /predict/image/<model_name> - Inference from a raw image upload (named model)"
+    );
     println!("     GET  /health               - Health check");
     println!("     GET  /metrics              - Server metrics");
     println!("     GET  /models               - List loaded models");
@@ -603,6 +699,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(health)
             .service(metrics)
+            .service(predict_image)
+            .service(predict_image_named)
             .service(predict)
             .service(predict_named)
             .service(list_models)

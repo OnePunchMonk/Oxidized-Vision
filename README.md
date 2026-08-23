@@ -224,11 +224,20 @@ cargo run -p image_server -- --model model.onnx --log-format json
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/predict` | Inference on the default model |
-| `POST` | `/predict/{model_name}` | Inference on a named model |
+| `POST` | `/predict` | Inference on the default model from a raw flattened-tensor JSON body |
+| `POST` | `/predict/{model_name}` | Same, on a named model |
+| `POST` | `/predict/image` | Inference on the default model from a raw image upload (JPEG/PNG/etc) — decoded, SIMD-resized, and normalized in Rust before inference |
+| `POST` | `/predict/image/{model_name}` | Same, on a named model |
 | `GET` | `/health` | Health check with per-model status |
 | `GET` | `/metrics` | Request counts, error counts, batch status |
 | `GET` | `/models` | List all loaded models |
+
+`/predict/image*` accepts the raw image bytes as the request body (e.g.
+`curl -X POST --data-binary @photo.jpg http://localhost:8080/predict/image`)
+and resizes to the model's configured input `[H, W]` using a SIMD
+(SSE4.1/AVX2/NEON) Lanczos3 resize kernel via `fast_image_resize`, fusing
+the u8→normalized-f32 NCHW conversion into the same pass — so preprocessing
+never round-trips through Python or a scalar per-pixel loop.
 
 ---
 
