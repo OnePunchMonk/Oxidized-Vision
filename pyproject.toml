@@ -31,6 +31,7 @@ dependencies = [
     "onnx>=1.12",
     "onnx-simplifier",
     "onnxruntime>=1.12",
+    "onnxscript",
     "numpy>=1.21",
     "typer>=0.7",
     "pydantic>=1.10",
@@ -43,7 +44,7 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "black>=23.0",
+    "black==25.11.0",
     "isort>=5.12",
     "ruff>=0.1",
     "mypy>=1.0",
@@ -87,3 +88,8 @@ addopts = "-v --tb=short"
 python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.uv.workspace]
+members = [
+    "benchmarks",
+]

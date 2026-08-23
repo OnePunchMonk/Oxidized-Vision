@@ -9,3 +9,6 @@ __pycache__/
 .oxidizedvision_registry.json
 .pytest_cache/
 *.pt
+.venv/
+uv.lock
+benchmarks/.python-version

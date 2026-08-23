@@ -269,6 +269,14 @@ Oxidized-Vision/
 
 ---
 
+## 📊 Benchmark Leaderboard
+
+Real, reproducible numbers (including a GPU run on Modal) live in
+[`benchmarks/RESULTS.md`](benchmarks/RESULTS.md) — not hand-edited, generated
+by the scripts in `benchmarks/`.
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -276,7 +284,7 @@ Oxidized-Vision/
 pytest python_client/tests/ -v --cov=oxidizedvision
 
 # Rust tests
-cargo test --workspace
+cd rust_runtime && cargo test --workspace
 ```
 
 ### Pre-commit Hooks

@@ -1,0 +1,68 @@
+[
+  {
+    "runner": "pytorch",
+    "model_path": "/tmp/out/unet.pt",
+    "device": "cuda",
+    "batch_size": 1,
+    "input_shape": [
+      1,
+      3,
+      256,
+      256
+    ],
+    "avg_latency_ms": 15.391,
+    "p50_latency_ms": 15.183,
+    "p95_latency_ms": 18.501,
+    "p99_latency_ms": 18.598,
+    "std_latency_ms": 0.827,
+    "throughput_per_sec": 64.97,
+    "memory_delta_mb": 0.0,
+    "total_time_s": 1.539,
+    "iters": 100,
+    "hardware": "Tesla T4"
+  },
+  {
+    "runner": "torchscript",
+    "model_path": "/tmp/out/unet.pt",
+    "device": "cuda",
+    "batch_size": 1,
+    "input_shape": [
+      1,
+      3,
+      256,
+      256
+    ],
+    "avg_latency_ms": 15.57,
+    "p50_latency_ms": 15.534,
+    "p95_latency_ms": 15.952,
+    "p99_latency_ms": 16.552,
+    "std_latency_ms": 0.29,
+    "throughput_per_sec": 64.23,
+    "memory_delta_mb": 0.0,
+    "total_time_s": 1.557,
+    "iters": 100,
+    "hardware": "Tesla T4"
+  },
+  {
+    "runner": "onnx",
+    "model_path": "/tmp/out/unet.onnx",
+    "device": "cuda",
+    "batch_size": 1,
+    "input_shape": [
+      1,
+      3,
+      256,
+      256
+    ],
+    "avg_latency_ms": 14.436,
+    "p50_latency_ms": 14.397,
+    "p95_latency_ms": 14.659,
+    "p99_latency_ms": 15.385,
+    "std_latency_ms": 0.2,
+    "throughput_per_sec": 69.27,
+    "memory_delta_mb": 0.0,
+    "total_time_s": 1.444,
+    "iters": 100,
+    "hardware": "Tesla T4"
+  }
+]

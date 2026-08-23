@@ -1,0 +1,9 @@
+[project]
+name = "benchmarks"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "modal>=1.5.4",
+    "numpy>=2.4.6",
+]
