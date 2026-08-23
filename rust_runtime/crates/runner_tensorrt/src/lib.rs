@@ -15,8 +15,17 @@ use anyhow::{bail, Context, Result};
 use ndarray::{ArrayD, IxDyn};
 use runner_core::tracing::{debug, info, warn};
 use runner_core::{ModelInfo, Runner, RunnerConfig};
+use serde::Deserialize;
 use std::path::Path;
 use std::process::Command;
+
+/// One entry of trtexec's `--exportOutput=<file>.json` output, e.g.:
+/// `[{"name": "output", "dimensions": "1x8x8x8", "values": [...]}]`
+#[derive(Deserialize)]
+struct TrtExecOutput {
+    dimensions: String,
+    values: Vec<f32>,
+}
 
 /// A runner backed by NVIDIA TensorRT.
 ///
@@ -63,15 +72,39 @@ impl Runner for TensorRTRunner {
                 .collect::<Vec<_>>()
                 .join("x");
 
-            let status = Command::new("trtexec")
-                .args(&[
-                    &format!("--onnx={}", model_path),
-                    &format!("--saveEngine={}", engine_path),
-                    &format!("--optShapes=input:{}", shape_str),
-                    "--fp16", // use FP16 by default for performance
-                ])
-                .status()
+            let base_args = [
+                format!("--onnx={}", model_path),
+                format!("--saveEngine={}", engine_path),
+                format!("--optShapes=input:{}", shape_str),
+            ];
+
+            // TensorRT 8.x's trtexec needs an explicit `--fp16` flag to build
+            // a half-precision engine. TensorRT 10+ switched to "strongly
+            // typed" networks, where precision comes from the ONNX graph
+            // itself, and removed the global `--fp16` flag entirely
+            // (`trtexec --fp16 ...` errors with "Unknown option: --fp16" —
+            // verified against a real TensorRT 11.2 install). Try with it
+            // first for the perf win on older installs, and fall back to
+            // without it so this doesn't break on newer ones.
+            let mut fp16_args = base_args.to_vec();
+            fp16_args.push("--fp16".to_string());
+            let output = Command::new("trtexec")
+                .args(&fp16_args)
+                .output()
                 .context("Failed to run trtexec")?;
+
+            let status = if output.status.success() {
+                output.status
+            } else {
+                warn!(
+                    "trtexec --fp16 failed (likely unsupported on this TensorRT version); \
+                     retrying without it"
+                );
+                Command::new("trtexec")
+                    .args(&base_args)
+                    .status()
+                    .context("Failed to run trtexec")?
+            };
 
             if !status.success() {
                 bail!("trtexec failed to build engine");
@@ -92,18 +125,32 @@ impl Runner for TensorRTRunner {
 
         // Write input to a temporary file
         let input_path = format!("{}.input.bin", self.engine_path);
-        let output_path = format!("{}.output.bin", self.engine_path);
+        let output_path = format!("{}.output.json", self.engine_path);
 
         let flat: Vec<f32> = input.iter().cloned().collect();
         let bytes: Vec<u8> = flat.iter().flat_map(|f| f.to_le_bytes()).collect();
         std::fs::write(&input_path, &bytes)?;
 
-        // Run inference using trtexec
+        let shape_str = input
+            .shape()
+            .iter()
+            .map(|d| d.to_string())
+            .collect::<Vec<_>>()
+            .join("x");
+
+        // `--saveOutput`/raw-binary output dumping was removed from trtexec
+        // in newer TensorRT releases (verified against a real TensorRT 11.2
+        // install: "Unknown option: --saveOutput"). `--exportOutput` (JSON)
+        // is the current supported way to get output values out of
+        // trtexec; `--shapes` supplies the concrete inference shape for
+        // this dynamic-shaped engine (build-time `--optShapes` alone isn't
+        // enough to run inference on a specific shape).
         let status = Command::new("trtexec")
-            .args(&[
-                &format!("--loadEngine={}", self.engine_path),
-                &format!("--loadInputs=input:{}", input_path),
-                &format!("--saveOutput={}", output_path),
+            .args([
+                format!("--loadEngine={}", self.engine_path),
+                format!("--shapes=input:{}", shape_str),
+                format!("--loadInputs=input:{}", input_path),
+                format!("--exportOutput={}", output_path),
             ])
             .status()
             .context("Failed to run trtexec inference")?;
@@ -112,23 +159,28 @@ impl Runner for TensorRTRunner {
             bail!("trtexec inference failed");
         }
 
-        // Read output
-        let output_bytes = std::fs::read(&output_path).context("Failed to read trtexec output")?;
+        let output_json =
+            std::fs::read_to_string(&output_path).context("Failed to read trtexec output")?;
+        let outputs: Vec<TrtExecOutput> = serde_json::from_str(&output_json)
+            .context("Failed to parse trtexec --exportOutput JSON")?;
+        let first = outputs
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("trtexec produced no output tensors"))?;
 
-        let output_floats: Vec<f32> = output_bytes
-            .chunks_exact(4)
-            .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-            .collect();
+        let output_shape: Vec<usize> = first
+            .dimensions
+            .split('x')
+            .map(|d| d.parse::<usize>())
+            .collect::<std::result::Result<_, _>>()
+            .context("Failed to parse trtexec output dimensions")?;
 
         // Clean up temporary files
         let _ = std::fs::remove_file(&input_path);
         let _ = std::fs::remove_file(&output_path);
 
-        // We use the input shape as a heuristic for output shape.
-        // In production, you'd parse the engine metadata for the actual output shape.
-        let output_shape = input.shape().to_vec();
         debug!(output_shape = ?output_shape, "TensorRT inference complete");
-        Ok(ArrayD::from_shape_vec(IxDyn(&output_shape), output_floats)?)
+        Ok(ArrayD::from_shape_vec(IxDyn(&output_shape), first.values)?)
     }
 
     fn info(&self) -> ModelInfo {

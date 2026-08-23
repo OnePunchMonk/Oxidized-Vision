@@ -49,4 +49,9 @@ oxidizedvision benchmark out/unet.pt --runners torchscript,tract,ort --iters 100
 # GPU, on Modal (requires `modal token new` once)
 cd benchmarks
 uv run modal run modal_gpu_benchmark.py
+
+# Verify runner_tensorrt against a real TensorRT SDK + GPU (no stock
+# CI/dev machine has trtexec installed, so this is the only way to
+# actually exercise that backend end-to-end)
+uv run modal run modal_tensorrt_check.py
 ```

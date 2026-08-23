@@ -214,6 +214,15 @@ pub trait Runner: Send + Sync {
 | `runner_tch` | TorchScript | ✅ | ❌ | LibTorch |
 | `runner_tensorrt` | ONNX → Engine | ✅ | ❌ | TensorRT SDK |
 
+`runner_tensorrt` shells out to `trtexec` (no stable Rust TensorRT bindings
+exist) and caches the built `.engine` file next to the ONNX model. Verified
+end-to-end (export → build engine → run inference) against a real TensorRT
+11.2 SDK on a T4 GPU via `benchmarks/modal_tensorrt_check.py` — that run
+caught two trtexec CLI changes in TensorRT 10+ (bare `--fp16` and
+`--saveOutput` were both removed in favor of strongly-typed networks and
+JSON-based `--exportOutput`), which are now handled with version-tolerant
+fallbacks so this works on both older and current TensorRT installs.
+
 `runner_ort` runs models through ONNX Runtime's `GraphOptimizationLevel::Level3`
 optimizer, which fuses common vision-backbone patterns (Conv+BatchNorm+Activation,
 MatMul+Add, LayerNorm, GELU) into single fused kernels and dispatches to

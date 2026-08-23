@@ -2260,6 +2260,8 @@ dependencies = [
  "anyhow",
  "ndarray 0.15.6",
  "runner_core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
