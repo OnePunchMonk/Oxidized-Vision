@@ -7,17 +7,18 @@
 //! - **Prometheus metrics**: `/metrics` endpoint for observability.
 //! - **Health checking**: `/health` endpoint with per-model status.
 
-use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse, middleware};
+use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
 use serde::{Deserialize, Serialize};
-use runner_core::{Runner, RunnerConfig, ModelInfo};
+use runner_core::{Runner, RunnerConfig};
 use runner_tract::TractRunner;
+use runner_ort::OrtRunner;
 use ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
 use std::time::{Duration, Instant};
 use clap::Parser;
 use tokio::sync::oneshot;
-use tracing::{info, warn, error, debug, instrument};
+use tracing::{info, error, debug, instrument};
 use tracing_actix_web::TracingLogger;
 
 // ─────────────────────────────── Configuration ───────────────────────────────
@@ -49,6 +50,16 @@ struct Args {
     /// Log format: 'pretty' or 'json'
     #[clap(long, default_value = "pretty")]
     log_format: String,
+
+    /// Inference backend: 'tract' (pure Rust, portable) or 'ort' (ONNX Runtime,
+    /// fused vision kernels — generally faster on CPU/GPU for CNN/ViT models).
+    #[clap(long, default_value = "ort")]
+    backend: String,
+
+    /// Run inference on GPU via CUDA (only applies to the 'ort' backend, and
+    /// only if runner_ort was built with the `cuda` feature).
+    #[clap(long)]
+    use_cuda: bool,
 }
 
 // ─────────────────────────────── Request / Response types ─────────────────────
@@ -135,7 +146,7 @@ impl DynamicBatcher {
     async fn submit(
         &self,
         input: ArrayD<f32>,
-        runner: &Arc<TractRunner>,
+        runner: &Arc<dyn Runner>,
     ) -> Result<ArrayD<f32>, String> {
         if self.max_batch_size <= 1 {
             // Batching disabled — run directly.
@@ -175,7 +186,7 @@ impl DynamicBatcher {
     }
 
     /// Flush all pending items in the queue — runs each through the runner.
-    async fn flush(&self, runner: &Arc<TractRunner>) {
+    async fn flush(&self, runner: &Arc<dyn Runner>) {
         let items: Vec<BatchItem> = {
             let mut queue = self.queue.lock().unwrap();
             std::mem::take(&mut *queue)
@@ -201,7 +212,7 @@ impl DynamicBatcher {
 // ─────────────────────────────── Server State ────────────────────────────────
 
 struct ModelEntry {
-    runner: Arc<TractRunner>,
+    runner: Arc<dyn Runner>,
     config: RunnerConfig,
     batcher: DynamicBatcher,
 }
@@ -474,14 +485,24 @@ async fn main() -> std::io::Result<()> {
         let config = RunnerConfig {
             model_path: path.clone(),
             input_shape: input_shape.clone(),
-            use_cuda: false,
+            use_cuda: args.use_cuda,
             optimize: true,
         };
 
-        let runner = TractRunner::from_config(&config).unwrap_or_else(|e| {
-            error!(name = %name, path = %path, error = %e, "Failed to load model");
-            std::process::exit(1);
-        });
+        let runner: Arc<dyn Runner> = match args.backend.as_str() {
+            "tract" => Arc::new(TractRunner::from_config(&config).unwrap_or_else(|e| {
+                error!(name = %name, path = %path, error = %e, "Failed to load model");
+                std::process::exit(1);
+            })),
+            "ort" => Arc::new(OrtRunner::from_config(&config).unwrap_or_else(|e| {
+                error!(name = %name, path = %path, error = %e, "Failed to load model");
+                std::process::exit(1);
+            })),
+            other => {
+                error!(backend = %other, "Unknown backend. Supported: 'tract', 'ort'");
+                std::process::exit(1);
+            }
+        };
 
         let batcher = DynamicBatcher::new(args.max_batch_size, args.max_wait_ms);
 
@@ -490,7 +511,7 @@ async fn main() -> std::io::Result<()> {
         }
 
         models.insert(name.clone(), ModelEntry {
-            runner: Arc::new(runner),
+            runner,
             config,
             batcher,
         });

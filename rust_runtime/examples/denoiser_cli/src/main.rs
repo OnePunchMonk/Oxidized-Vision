@@ -1,7 +1,7 @@
 use clap::Parser;
 use runner_core::{Runner, RunnerConfig};
 use runner_tract::TractRunner;
-use ndarray::{ArrayD, Array3, IxDyn};
+use ndarray::{ArrayD, IxDyn};
 use image::{io::Reader as ImageReader, DynamicImage, Rgb32FImage};
 use anyhow::Result;
 

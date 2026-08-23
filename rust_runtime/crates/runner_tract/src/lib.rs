@@ -4,8 +4,8 @@
 //! Supports CPU inference and WebAssembly targets.
 
 use anyhow::Result;
-use ndarray::{ArrayD, IxDyn};
-use runner_core::tracing::{debug, info, warn};
+use ndarray::ArrayD;
+use runner_core::tracing::{debug, info};
 use runner_core::{ModelInfo, Runner, RunnerConfig};
 use tract_onnx::prelude::*;
 
