@@ -272,9 +272,77 @@ async fn health(data: web::Data<AppState>) -> impl Responder {
     })
 }
 
+/// Prometheus scrape endpoint (text exposition format, not JSON — a
+/// `/metrics` path is conventionally expected to be Prometheus-scrapable,
+/// so this emits the real exposition format rather than an ad-hoc JSON
+/// shape a scraper can't parse). Use `/metrics.json` for the same numbers
+/// as JSON, e.g. for scripting.
 #[get("/metrics")]
 #[instrument(skip(data))]
 async fn metrics(data: web::Data<AppState>) -> impl Responder {
+    let stats = collect_metrics(&data);
+
+    let mut body = String::new();
+    body.push_str("# HELP oxidizedvision_requests_total Total inference requests received.\n");
+    body.push_str("# TYPE oxidizedvision_requests_total counter\n");
+    body.push_str(&format!(
+        "oxidizedvision_requests_total {}\n",
+        stats.total_requests
+    ));
+
+    body.push_str("# HELP oxidizedvision_errors_total Total inference requests that errored.\n");
+    body.push_str("# TYPE oxidizedvision_errors_total counter\n");
+    body.push_str(&format!(
+        "oxidizedvision_errors_total {}\n",
+        stats.total_errors
+    ));
+
+    body.push_str("# HELP oxidizedvision_models_loaded Number of models currently loaded.\n");
+    body.push_str("# TYPE oxidizedvision_models_loaded gauge\n");
+    body.push_str(&format!(
+        "oxidizedvision_models_loaded {}\n",
+        stats.models_loaded
+    ));
+
+    body.push_str(
+        "# HELP oxidizedvision_batching_enabled Whether dynamic batching is enabled (1) or not (0).\n",
+    );
+    body.push_str("# TYPE oxidizedvision_batching_enabled gauge\n");
+    body.push_str(&format!(
+        "oxidizedvision_batching_enabled {}\n",
+        stats.batching_enabled as u8
+    ));
+
+    body.push_str("# HELP oxidizedvision_max_batch_size Configured maximum batch size.\n");
+    body.push_str("# TYPE oxidizedvision_max_batch_size gauge\n");
+    body.push_str(&format!(
+        "oxidizedvision_max_batch_size {}\n",
+        stats.max_batch_size
+    ));
+
+    body.push_str(
+        "# HELP oxidizedvision_pending_batch_items Requests currently queued awaiting a batch flush.\n",
+    );
+    body.push_str("# TYPE oxidizedvision_pending_batch_items gauge\n");
+    body.push_str(&format!(
+        "oxidizedvision_pending_batch_items {}\n",
+        stats.pending_batch_items
+    ));
+
+    HttpResponse::Ok()
+        .content_type("text/plain; version=0.0.4; charset=utf-8")
+        .body(body)
+}
+
+/// Same numbers as `/metrics`, as JSON — for scripting/tooling that would
+/// rather not parse the Prometheus text format.
+#[get("/metrics.json")]
+#[instrument(skip(data))]
+async fn metrics_json(data: web::Data<AppState>) -> impl Responder {
+    HttpResponse::Ok().json(collect_metrics(&data))
+}
+
+fn collect_metrics(data: &web::Data<AppState>) -> MetricsResponse {
     let total_pending: usize = data
         .models
         .values()
@@ -288,14 +356,14 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
         .max()
         .unwrap_or(0);
 
-    HttpResponse::Ok().json(MetricsResponse {
+    MetricsResponse {
         total_requests: data.metrics.total_requests.load(Ordering::Relaxed),
         total_errors: data.metrics.total_errors.load(Ordering::Relaxed),
         models_loaded: data.models.len(),
         batching_enabled: any_batching,
         max_batch_size: max_bs,
         pending_batch_items: total_pending,
-    })
+    }
 }
 
 /// Predict on the default model.
@@ -699,6 +767,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(health)
             .service(metrics)
+            .service(metrics_json)
             .service(predict_image)
             .service(predict_image_named)
             .service(predict)

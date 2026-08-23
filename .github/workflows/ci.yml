@@ -107,3 +107,23 @@ jobs:
     - name: Test
       run: |
         cargo test --verbose -p runner_core -p runner_tract -p runner_ort
+
+  rust-macos-coreml:
+    name: Rust Build (macOS, CoreML feature)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: rust_runtime
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build with coreml feature
+      run: |
+        cargo build --verbose -p runner_ort -p image_server --features coreml
+
+    - name: Test
+      run: |
+        cargo test --verbose -p runner_ort --features coreml

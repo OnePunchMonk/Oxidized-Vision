@@ -182,17 +182,26 @@ pub trait Runner: Send + Sync {
 | Backend | Model Format | GPU | WASM | Dependencies |
 |---|---|---|---|---|
 | `runner_tract` | ONNX | ❌ | ✅ | None (pure Rust) |
-| `runner_ort` | ONNX | ✅ (CUDA) | ❌ | ONNX Runtime |
+| `runner_ort` | ONNX | ✅ (CUDA/CoreML) | ❌ | ONNX Runtime |
 | `runner_tch` | TorchScript | ✅ | ❌ | LibTorch |
 | `runner_tensorrt` | ONNX → Engine | ✅ | ❌ | TensorRT SDK |
 
 `runner_ort` runs models through ONNX Runtime's `GraphOptimizationLevel::Level3`
 optimizer, which fuses common vision-backbone patterns (Conv+BatchNorm+Activation,
 MatMul+Add, LayerNorm, GELU) into single fused kernels and dispatches to
-hardware-tuned (oneDNN / cuDNN) implementations. For standard CNN and ViT vision
-models this generally beats `tract` on both CPU and GPU latency — use `tract`
-when you need pure-Rust/WASM portability, and `ort` when you want the fastest
-native CPU/GPU inference.
+hardware-tuned (oneDNN / cuDNN / Core ML) implementations. For standard CNN and
+ViT vision models this generally beats `tract` on both CPU and GPU latency — use
+`tract` when you need pure-Rust/WASM portability, and `ort` when you want the
+fastest native CPU/GPU inference. It holds a small pool of independent ONNX
+Runtime sessions (default: up to 4, sized to available parallelism) rather than
+one session behind a single lock, so concurrent requests in a server don't
+serialize onto one `&mut Session`.
+
+GPU/accelerator dispatch is behind Cargo features, since each links an
+external SDK: `cargo build -p runner_ort --features cuda` for NVIDIA GPUs,
+`--features coreml` for Apple Silicon (dispatches eligible ops to the Neural
+Engine via Core ML, falling back to CPU for the rest) — `image_server` forwards
+the same features (`cargo run -p image_server --features coreml -- ...`).
 
 ---
 
@@ -229,7 +238,8 @@ cargo run -p image_server -- --model model.onnx --log-format json
 | `POST` | `/predict/image` | Inference on the default model from a raw image upload (JPEG/PNG/etc) — decoded, SIMD-resized, and normalized in Rust before inference |
 | `POST` | `/predict/image/{model_name}` | Same, on a named model |
 | `GET` | `/health` | Health check with per-model status |
-| `GET` | `/metrics` | Request counts, error counts, batch status |
+| `GET` | `/metrics` | Prometheus scrape endpoint (text exposition format) |
+| `GET` | `/metrics.json` | Same numbers as `/metrics`, as JSON |
 | `GET` | `/models` | List all loaded models |
 
 `/predict/image*` accepts the raw image bytes as the request body (e.g.
