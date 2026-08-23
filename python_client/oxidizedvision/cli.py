@@ -243,18 +243,33 @@ def optimize(
         None, help="Output path. Defaults to '<input>_optimized.onnx'."
     ),
     simplify: bool = typer.Option(True, help="Apply onnx-simplifier."),
-    quantize: Optional[str] = typer.Option(None, help="Quantization mode: 'int8' or 'fp16'."),
+    quantize: Optional[str] = typer.Option(
+        None,
+        help="Quantization mode: 'int8' (dynamic), 'static_int8' (calibration-based), or 'fp16'.",
+    ),
     constant_folding: bool = typer.Option(True, help="Apply constant folding."),
+    input_shape: Optional[str] = typer.Option(
+        None,
+        help="Input shape as comma-separated dims (e.g. '1,3,256,256') — required for 'static_int8'.",
+    ),
+    calibration_samples: int = typer.Option(
+        32, help="Number of synthetic calibration samples for 'static_int8'."
+    ),
 ):
     """Optimize an ONNX model (simplify, quantize, fold constants)."""
     try:
         logger.info("Optimizing %s (simplify=%s, quantize=%s)", input_path, simplify, quantize)
+        shape = None
+        if input_shape:
+            shape = [int(d.strip()) for d in input_shape.split(",")]
         optimize_module.optimize_model(
             input_path=input_path,
             output_path=output_path,
             simplify=simplify,
             quantize=quantize,
             constant_folding=constant_folding,
+            input_shape=shape,
+            num_calibration_samples=calibration_samples,
         )
         logger.info("Optimization complete")
     except Exception as e:

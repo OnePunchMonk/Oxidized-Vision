@@ -13,7 +13,7 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 | Feature | Description |
 |---|---|
 | 🔄 **Model Conversion** | PyTorch → TorchScript → ONNX with a single command |
-| ⚡ **Optimization** | ONNX graph simplification, constant folding, INT8/FP16 quantization |
+| ⚡ **Optimization** | ONNX graph simplification, constant folding, dynamic/static (calibration-based) INT8, FP16 quantization |
 | ✅ **Validation** | Numerical consistency checks (MAE, RMSE, Cosine Similarity) across formats |
 | 📊 **Benchmarking** | Latency (avg, p50, p95, p99), throughput, and memory profiling |
 | 🔬 **Profiling** | Parameter count, model size, per-layer breakdown |
@@ -147,7 +147,7 @@ oxidizedvision --json-log convert config.yml
 | `convert` | Convert PyTorch → TorchScript + ONNX | `oxidizedvision convert config.yml` |
 | `validate` | Check numerical consistency | `oxidizedvision validate config.yml --num-tests 5` |
 | `benchmark` | Measure inference performance | `oxidizedvision benchmark out/model.pt --runners torchscript,tract,ort` |
-| `optimize` | Optimize an ONNX model | `oxidizedvision optimize out/model.onnx --quantize fp16` |
+| `optimize` | Optimize an ONNX model | `oxidizedvision optimize out/model.onnx --quantize static_int8 --input-shape 1,3,256,256` |
 | `profile` | Analyze model parameters and layers | `oxidizedvision profile config.yml` |
 | `package` | Generate deployable Rust crate | `oxidizedvision package out/model.onnx --template server` |
 | `serve` | Start inference server | `oxidizedvision serve ./binary --port 8080` |
