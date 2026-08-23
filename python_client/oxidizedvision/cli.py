@@ -387,7 +387,7 @@ fn main() -> anyhow::Result<()> {{
 @app.command()
 def package(
     onnx: str = typer.Argument(..., help="Path to the ONNX model file."),
-    runner: str = typer.Option("tract", help="Runner backend: 'tract', 'tch', or 'tensorrt'."),
+    runner: str = typer.Option("tract", help="Runner backend: 'tract', 'ort', 'tch', or 'tensorrt'."),
     out: str = typer.Option("./packaged", help="Output directory for the Rust crate."),
     template: str = typer.Option("server", help="Template: 'server' or 'cli'."),
     input_shape: str = typer.Option("1,3,256,256", help="Input shape."),
@@ -408,6 +408,7 @@ def package(
         # Runner struct mapping
         runner_structs = {
             "tract": "TractRunner",
+            "ort": "OrtRunner",
             "tch": "TchRunner",
             "tensorrt": "TensorRTRunner",
         }
@@ -416,6 +417,7 @@ def package(
         # Generate Cargo.toml
         deps = {
             "tract": 'runner_tract = { path = "../../crates/runner_tract" }',
+            "ort": 'runner_ort = { path = "../../crates/runner_ort" }',
             "tch": 'runner_tch = { path = "../../crates/runner_tch" }',
             "tensorrt": 'runner_tensorrt = { path = "../../crates/runner_tensorrt" }',
         }

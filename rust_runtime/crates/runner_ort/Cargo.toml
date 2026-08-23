@@ -1,0 +1,15 @@
+[package]
+name = "runner_ort"
+version = "0.1.0"
+edition = "2021"
+description = "ONNX inference runner using Microsoft's ONNX Runtime (via the `ort` crate) for optimized CPU/GPU vision-op kernels."
+
+[features]
+default = []
+cuda = ["ort/cuda"]
+
+[dependencies]
+runner_core = { path = "../runner_core" }
+ort = { version = "2.0.0-rc.9", features = ["ndarray"] }
+ndarray = "0.15"
+anyhow = "1.0"

@@ -18,7 +18,7 @@ OxidizedVision is a production-grade toolkit that bridges the gap between Python
 | 📊 **Benchmarking** | Latency (avg, p50, p95, p99), throughput, and memory profiling |
 | 🔬 **Profiling** | Parameter count, model size, per-layer breakdown |
 | 📦 **Packaging** | Auto-generate a deployable Rust crate (server or CLI) |
-| 🌐 **Multi-Backend** | `tract` (pure Rust), `tch` (LibTorch), `tensorrt` (NVIDIA GPU) |
+| 🌐 **Multi-Backend** | `tract` (pure Rust), `ort` (ONNX Runtime, fused vision kernels), `tch` (LibTorch), `tensorrt` (NVIDIA GPU) |
 | 🧩 **WASM Support** | Run models in the browser via WebAssembly |
 | 📋 **Model Registry** | Track all converted models and their metadata locally |
 | 🎨 **Rich CLI** | Beautiful terminal output with progress indicators and tables |
@@ -47,12 +47,14 @@ subgraph RUST["Rust Runtimes"]
 
     TCH["runner_tch<br/>(LibTorch)"]
     TRACT["runner_tract<br/>(Pure Rust)"]
+    ORT["runner_ort<br/>(ONNX Runtime, fused kernels)"]
     TRT["runner_tensorrt<br/>(GPU / TensorRT)"]
 
     CORE["runner_core (Shared Trait)<br/>+ tracing structured logging"]
 
     TCH --> CORE
     TRACT --> CORE
+    ORT --> CORE
     TRT --> CORE
 end
 
@@ -114,7 +116,7 @@ oxidizedvision validate config.yml
 oxidizedvision optimize out/unet.onnx --quantize int8
 
 # Benchmark performance
-oxidizedvision benchmark out/unet.pt --runners torchscript,tract
+oxidizedvision benchmark out/unet.pt --runners torchscript,tract,ort
 
 # Profile the model
 oxidizedvision profile config.yml
@@ -144,7 +146,7 @@ oxidizedvision --json-log convert config.yml
 |---|---|---|
 | `convert` | Convert PyTorch → TorchScript + ONNX | `oxidizedvision convert config.yml` |
 | `validate` | Check numerical consistency | `oxidizedvision validate config.yml --num-tests 5` |
-| `benchmark` | Measure inference performance | `oxidizedvision benchmark out/model.pt --runners torchscript,tract` |
+| `benchmark` | Measure inference performance | `oxidizedvision benchmark out/model.pt --runners torchscript,tract,ort` |
 | `optimize` | Optimize an ONNX model | `oxidizedvision optimize out/model.onnx --quantize fp16` |
 | `profile` | Analyze model parameters and layers | `oxidizedvision profile config.yml` |
 | `package` | Generate deployable Rust crate | `oxidizedvision package out/model.onnx --template server` |
@@ -180,8 +182,17 @@ pub trait Runner: Send + Sync {
 | Backend | Model Format | GPU | WASM | Dependencies |
 |---|---|---|---|---|
 | `runner_tract` | ONNX | ❌ | ✅ | None (pure Rust) |
+| `runner_ort` | ONNX | ✅ (CUDA) | ❌ | ONNX Runtime |
 | `runner_tch` | TorchScript | ✅ | ❌ | LibTorch |
 | `runner_tensorrt` | ONNX → Engine | ✅ | ❌ | TensorRT SDK |
+
+`runner_ort` runs models through ONNX Runtime's `GraphOptimizationLevel::Level3`
+optimizer, which fuses common vision-backbone patterns (Conv+BatchNorm+Activation,
+MatMul+Add, LayerNorm, GELU) into single fused kernels and dispatches to
+hardware-tuned (oneDNN / cuDNN) implementations. For standard CNN and ViT vision
+models this generally beats `tract` on both CPU and GPU latency — use `tract`
+when you need pure-Rust/WASM portability, and `ort` when you want the fastest
+native CPU/GPU inference.
 
 ---
 
@@ -242,6 +253,7 @@ Oxidized-Vision/
 │   │   ├── runner_core/       # Shared Runner trait + tracing
 │   │   ├── runner_tch/        # LibTorch backend
 │   │   ├── runner_tract/      # tract (ONNX) backend
+│   │   ├── runner_ort/        # ONNX Runtime backend (fused vision kernels)
 │   │   └── runner_tensorrt/   # TensorRT backend
 │   └── examples/
 │       ├── image_server/      # Multi-model REST API with batching

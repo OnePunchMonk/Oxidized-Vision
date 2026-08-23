@@ -78,10 +78,22 @@ def _benchmark_onnx(
     input_shape: List[int],
     iters: int,
     device: str = "cpu",
+    graph_optimization_level: Optional["ort.GraphOptimizationLevel"] = None,
 ) -> Dict[str, Any]:
-    """Benchmark an ONNX model via onnxruntime."""
+    """Benchmark an ONNX model via onnxruntime.
+
+    Args:
+        graph_optimization_level: ONNX Runtime graph optimization level. Defaults
+            to onnxruntime's own default. Pass `ORT_ENABLE_ALL` to match the
+            Level3 fusion (Conv+BN+Activation, MatMul+Add, LayerNorm, etc.)
+            used by the Rust `runner_ort` backend, for an apples-to-apples
+            comparison against `tract`.
+    """
     providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
-    session = ort.InferenceSession(model_path, providers=providers)
+    sess_options = ort.SessionOptions()
+    if graph_optimization_level is not None:
+        sess_options.graph_optimization_level = graph_optimization_level
+    session = ort.InferenceSession(model_path, sess_options=sess_options, providers=providers)
     input_name = session.get_inputs()[0].name
     dummy_input = np.random.randn(*input_shape).astype(np.float32)
 
@@ -146,7 +158,7 @@ def measure_performance(
     
     Args:
         model_path: Path to the model file (.pt or .onnx).
-        runner: Runner name ('pytorch', 'torchscript', 'tract', 'onnx').
+        runner: Runner name ('pytorch', 'torchscript', 'tract', 'onnx', 'ort').
         iters: Number of benchmark iterations.
         batch_size: Batch size for the input tensor.
         input_shape: Full input shape. If None, uses [batch_size, 3, 256, 256].
@@ -177,6 +189,14 @@ def measure_performance(
         metrics = _benchmark_torchscript(model_path, input_shape, iters, device)
     elif runner in ("tract", "onnx"):
         metrics = _benchmark_onnx(model_path, input_shape, iters, device)
+    elif runner == "ort":
+        metrics = _benchmark_onnx(
+            model_path,
+            input_shape,
+            iters,
+            device,
+            graph_optimization_level=ort.GraphOptimizationLevel.ORT_ENABLE_ALL,
+        )
     else:
         raise ValueError(f"Unknown runner: {runner}")
 
@@ -223,7 +243,7 @@ def run_benchmarks(
 
         # Adjust model path for ONNX-based runners
         current_model_path = model_path
-        if runner in ("tract", "onnx"):
+        if runner in ("tract", "onnx", "ort"):
             current_model_path = model_path.replace(".pt", ".onnx")
             if not os.path.exists(current_model_path):
                 console.print(f"  [yellow]Warning: ONNX model not found at {current_model_path}. Skipping.[/yellow]")
