@@ -204,7 +204,55 @@ benchmark:
   device: cpu                              # 'cpu' or 'cuda'
 ```
 
-## 5. Troubleshooting
+## 6. Vision-specific fused kernels (`kernel_vision`)
+
+The optimization pipeline above (§1, §3 "Optimize" stage) is generic
+ONNX-graph-level: operator fusion, constant folding, quantization. It has
+no notion of *vision-specific* redundancy — e.g. that a ViT typically
+attends over far more spatial tokens than it needs to, or that many patch
+tokens in a real image (sky, background, flat regions) carry near-duplicate
+information. `rust_runtime/crates/kernel_vision` and
+`python_client/oxidizedvision/kernels.py` implement two such kernels, each
+in two forms (Rust for serving-time / pre-export use, PyTorch for
+in-model/exportable use):
+
+- **`token_merge`** (ToMe-style, Bolya et al. ICLR 2023): merges the `r`
+  most cosine-similar token pairs (bipartite matching across two halves of
+  the sequence, many-to-one merges allowed) each call, e.g. between
+  transformer blocks. Shrinks the token count seen by every later block,
+  reducing both attention's `O(n²)` cost and the MLP's `O(n)` cost — with no
+  retraining required, though fine-tuning after insertion typically
+  recovers most of any accuracy gap. The PyTorch version
+  (`oxidizedvision.kernels.TokenMerge`) is a `torch.nn.Module` you insert
+  directly into a model before `convert_model`/ONNX export; the Rust
+  version (`kernel_vision::token_merge`) is for merging tokens outside a
+  traced model, e.g. as a serving-time preprocessing step.
+- **`windowed_attention`**: exact softmax self-attention restricted to
+  non-overlapping spatial windows (Swin-style), computed with an online
+  (streaming) softmax over key tiles — the core numerical trick from
+  FlashAttention (Dao et al. 2022) — so it never materializes a full
+  `[n, n]` score matrix, only `[window², key_tile]`. Rust-only for now
+  (`kernel_vision::windowed_attention`); there is no PyTorch counterpart
+  because inserting windowed attention into an existing model means
+  replacing its attention layer's implementation, not adding a new one
+  between blocks, which is architecture-specific and out of scope for a
+  generic drop-in module.
+
+Both are plain parallelized CPU kernels (`rayon`), not CUDA. See
+[`benchmarks/RESULTS.md`](../benchmarks/RESULTS.md#cpu-kernel_vision-fused-vision-kernels-vit-scale-synthetic-tokens)
+for measured speedups, and that file's caveat on what `token_merge`'s
+number does and doesn't tell you.
+
+**What this deliberately doesn't cover** (tracked as follow-up issues,
+since they need infrastructure/hardware this repo and this environment
+don't have): hand-written CUDA kernels (no GPU/CUDA toolchain available to
+write *and validate* one honestly — see the perf-claim rule in this repo's
+engineering practice: a speed claim needs a benchmark on real hardware, not
+a plausible-sounding kernel nobody ran), TensorRT custom plugins, and
+RSI-style adaptive/predictive kernel-selection at runtime (needs telemetry
+infrastructure and a tuning corpus that doesn't exist yet).
+
+## 7. Troubleshooting
 
 ### Common Issues
 

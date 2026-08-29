@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/kernel_vision",
     "crates/runner_core",
     "crates/runner_tch",
     "crates/runner_tract",

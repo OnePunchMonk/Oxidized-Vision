@@ -1,0 +1,10 @@
+{
+  "device": "Tesla T4",
+  "attention_14x14_196tok_full_ms": 0.9859666749999983,
+  "attention_14x14_196tok_windowed_w7_ms": 0.1807355750000017,
+  "attention_28x28_784tok_full_ms": 5.701028325000004,
+  "attention_28x28_784tok_windowed_w7_ms": 0.6030283499999989,
+  "token_merge_op_ms": 0.760511174999996,
+  "attention_before_merge_ms": 0.49790272500000116,
+  "attention_after_merge_ms": 0.3112055599999941
+}
