@@ -12,6 +12,7 @@ __email__ = "aggarwal.avaya27@gmail.com"
 from .benchmark import measure_performance, run_benchmarks
 from .config import Config, ExportConfig, ModelConfig, load_config, save_config
 from .convert import convert_model, convert_to_onnx, convert_to_torchscript, load_model
+from .kernels import TokenMerge, token_merge
 from .logging import configure_logging, get_logger
 from .optimize import optimize_model, quantize_onnx, simplify_onnx
 from .profile import print_profile, profile_model
@@ -30,6 +31,9 @@ __all__ = [
     "load_model",
     "convert_to_torchscript",
     "convert_to_onnx",
+    # Kernels
+    "TokenMerge",
+    "token_merge",
     # Validate
     "validate_models",
     "calculate_mae",
